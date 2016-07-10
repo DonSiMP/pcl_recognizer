@@ -1,0 +1,4 @@
+<launch>
+    <node name="pcl_recognizer" pkg="pcl_recognizer" type="pcl_recognizer" output="screen"/>
+    <node name="params_gui" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+</launch>
