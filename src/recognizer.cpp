@@ -69,7 +69,7 @@ void Recognizer::clusterize()
   clusterer.recognize (foundInstances, clustered_corrs);
 }
 
-void Recognizer::reconfigure(pcl_recognizer::ParamsConfig& config)
+void Recognizer::cfg_cb(pcl_recognizer::GroupingConfig& config, uint32_t level)
 {
   use_hough_ = config.use_hough;
   cg_size_ = static_cast<float>(config.cg_size);

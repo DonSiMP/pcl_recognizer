@@ -2,15 +2,15 @@
 
 #include "pcl_recognizer/preprocessor.h"
 #include "pcl_recognizer/recognizer.h"
-
-#include <dynamic_reconfigure/server.h>
+#include "pcl_recognizer/visualizer.h"
+#include "pcl_recognizer/RecognizerConfig.h"
 
 static constexpr auto MODEL_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/3D_model.pcd";
 static constexpr auto SCENE_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/views/cloud_00000000.pcd";
 
-pcl_recognizer::ParamsConfig g_config_;
+pcl_recognizer::RecognizerConfig g_config_;
 
-void params_cb(pcl_recognizer::ParamsConfig &config, uint32_t level)
+void params_cb(pcl_recognizer::RecognizerConfig &config, uint32_t level)
 {
   if (config.recalculate)
   {
@@ -28,10 +28,16 @@ int main(int argc, char *argv[])
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  dynamic_reconfigure::Server<pcl_recognizer::ParamsConfig> server;
-  dynamic_reconfigure::Server<pcl_recognizer::ParamsConfig>::CallbackType params_server_cb;
+  dynamic_reconfigure::Server<pcl_recognizer::RecognizerConfig> server;
+  dynamic_reconfigure::Server<pcl_recognizer::RecognizerConfig>::CallbackType params_server_cb;
   params_server_cb = boost::bind(&params_cb, _1, _2);
   server.setCallback(params_server_cb);
+
+  Preprocessor model_preprocessor("model");
+  Visualizer model_vis("model_visualizer");
+  Preprocessor scene_preprocessor("scene");
+  Visualizer scene_vis("scene_visualizer");
+  Visualizer rec_vis("recognizer_visualizer");
 
   ros::Rate rate(5);
   ros::AsyncSpinner spinner(1);
@@ -44,19 +50,18 @@ int main(int argc, char *argv[])
       g_config_.recalculate = false;
       try
       {
-        Preprocessor preprocessor;
-        preprocessor.reconfigure(g_config_, Preprocessor::ParamContext::Model);
-        auto model = preprocessor.load(MODEL_PATH);
+        auto model = model_preprocessor.load(MODEL_PATH);
 
         Recognizer recognizer;
         recognizer.setModel(model);
-        recognizer.reconfigure(g_config_);
 
-        preprocessor.reconfigure(g_config_, Preprocessor::ParamContext::Scene);
-        auto scene = preprocessor.load(SCENE_PATH);
+        auto scene = scene_preprocessor.load(SCENE_PATH);
         Pose pose;
         auto result = recognizer.recognize(scene, pose);
         std::cout << "Found " << result << " object instances" << std::endl;
+
+        model_vis.update(model);
+        scene_vis.update(scene);
       }
       catch (const std::exception& ex)
       {
@@ -70,6 +75,8 @@ int main(int argc, char *argv[])
       }
     }
 
+    model_vis.spin();
+    scene_vis.spin();
     rate.sleep();
   }
   return 0;

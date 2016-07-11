@@ -57,7 +57,7 @@ void Preprocessor::computeNormals()
 void Preprocessor::computeDescriptors()
 {
   pcl::SHOTEstimationOMP<Point, Normal, Descriptor> descr_est;
-  descr_est.setRadiusSearch (descr_rad_);
+  descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
 
   descr_est.setInputCloud (data_.keypoints_);
   descr_est.setInputNormals (data_.normals_);
@@ -69,22 +69,12 @@ void Preprocessor::computeReferenceFrames()
 {
   pcl::BOARDLocalReferenceFrameEstimation<Point, Normal, ReferenceFrame> rf_est;
   rf_est.setFindHoles (true);
-  rf_est.setRadiusSearch (rf_rad_);
+  rf_est.setRadiusSearch (descriptor_cfg_.rf_rad);
 
   rf_est.setInputCloud (data_.keypoints_);
   rf_est.setInputNormals (data_.normals_);
   rf_est.setSearchSurface (data_.input_);
   rf_est.compute (*data_.rf_);
-}
-
-void Preprocessor::reconfigure(pcl_recognizer::ParamsConfig& config, ParamContext ctx)
-{
-  descr_rad_ = static_cast<float>(config.descr_rad);
-  rf_rad_ = static_cast<float>(config.rf_rad);
-  if(ctx == ParamContext::Model)
-    sampling_size_ = static_cast<float>(config.model_ss);
-  else
-    sampling_size_ = static_cast<float>(config.scene_ss);
 }
 
 void Preprocessor::computeResolution()
@@ -116,24 +106,27 @@ void Preprocessor::computeResolution()
 
 void Preprocessor::downsample()
 {
-  //downsampleUniform();
-  downsampleISS();
+  if(keypoint_cfg_.method == 0)
+    downsampleUniform();
+  else
+    downsampleISS();
   //downsampleHarris();
   //downsampleSIFT();
-}
 
-void Preprocessor::downsampleUniform()
-{
-  pcl::UniformSampling<Point> uniform_sampling;
-  uniform_sampling.setInputCloud (data_.input_);
-  uniform_sampling.setRadiusSearch (sampling_size_);
-  uniform_sampling.filter (*data_.keypoints_);
   std::cout <<
   "Cloud total points: " <<
   data_.input_->size () <<
   "; Selected Keypoints: " <<
   data_.keypoints_->size () <<
   std::endl;
+}
+
+void Preprocessor::downsampleUniform()
+{
+  pcl::UniformSampling<Point> uniform_sampling;
+  uniform_sampling.setInputCloud (data_.input_);
+  uniform_sampling.setRadiusSearch (keypoint_cfg_.uniform_radius);
+  uniform_sampling.filter (*data_.keypoints_);
 }
 
 void Preprocessor::downsampleISS()
@@ -143,10 +136,10 @@ void Preprocessor::downsampleISS()
   auto iss_min_neighbors_ = 5;
   auto  iss_threads_ = 4u;
 
-  auto iss_non_max_radius_ = 4 * resolution_;
-  auto iss_normal_radius_ = 4 * resolution_;
-  auto iss_border_radius_ = 1 * resolution_;
-  auto iss_salient_radius_ = 6 * resolution_;
+  auto iss_non_max_radius_ = keypoint_cfg_.iss_non_max_radius;//4 * resolution_;
+  auto iss_normal_radius_ = keypoint_cfg_.iss_normal_radius;//4 * resolution_;
+  auto iss_border_radius_ = keypoint_cfg_.iss_border_radius;//1 * resolution_;
+  auto iss_salient_radius_ = keypoint_cfg_.iss_salient_radius;//6 * resolution_;
 
   pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
   tree->setInputCloud(data_.input_);
@@ -169,6 +162,9 @@ void Preprocessor::downsampleISS()
   iss_detector.setNumberOfThreads (iss_threads_);
   iss_detector.setInputCloud (data_.input_);
   iss_detector.compute (*data_.keypoints_);
+
+  auto indices = iss_detector.getKeypointsIndices();
+  *data_.keypoint_idxes_ = indices->indices;
 }
 
 void Preprocessor::downsampleHarris()
@@ -179,4 +175,14 @@ void Preprocessor::downsampleHarris()
 void Preprocessor::downsampleSIFT()
 {
 
+}
+
+Preprocessor::Preprocessor(std::string name) : keypoint_srv_(name + "_keypoints"), descriptor_srv_(name + "_descriptors")
+{
+  dynamic_reconfigure::Server<pcl_recognizer::KeypointConfig>::CallbackType keypoint_server_cb;
+  keypoint_server_cb = boost::bind(&Preprocessor::keypoint_cb, this, _1, _2);
+  keypoint_srv_.setCallback(keypoint_server_cb);
+  dynamic_reconfigure::Server<pcl_recognizer::DescriptorConfig>::CallbackType descriptor_server_cb;
+  descriptor_server_cb = boost::bind(&Preprocessor::descriptor_cb, this, _1, _2);
+  descriptor_srv_.setCallback(descriptor_server_cb);
 }
