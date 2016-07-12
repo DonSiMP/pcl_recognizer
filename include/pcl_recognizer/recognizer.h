@@ -11,6 +11,10 @@ class Recognizer
 public:
   void setModel(PreprocessedData& model) { model_ = model; }
   int recognize(const PreprocessedData& scene, Pose& pose);
+
+  PreprocessedData getModel() { return model_; }
+  PreprocessedData getScene() { return scene_; }
+  pcl::CorrespondencesPtr getCorrs() { return model_scene_corrs; };
 private:
 
   PreprocessedData model_, scene_;

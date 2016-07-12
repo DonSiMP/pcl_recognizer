@@ -1,6 +1,5 @@
 #include "pcl_recognizer/preprocessor.h"
 
-#include <pcl/conversions.h>
 #include <pcl/features/board.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/shot_omp.h>
@@ -8,6 +7,8 @@
 
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/keypoints/iss_3d.h>
+
+#include <pcl/surface/mls.h>
 
 PreprocessedData Preprocessor::load(std::string file_name)
 {
@@ -48,11 +49,52 @@ void Preprocessor::preprocess()
 
 void Preprocessor::computeNormals()
 {
-  pcl::NormalEstimationOMP<Point, Normal> norm_est;
-  norm_est.setKSearch (10);
+  if(descriptor_cfg_.normal_method == 0)
+    computeNormalsOMP();
+  else if(descriptor_cfg_.normal_method == 1)
+    computeNormalsINT();
+  else
+    computeNormalsMLS();
+}
+
+
+void Preprocessor::computeNormalsOMP()
+{
+  pcl::NormalEstimationOMP<Point, Normal> norm_est(10);
+  norm_est.setKSearch (descriptor_cfg_.normal_ksize);
+  norm_est.setRadiusSearch(descriptor_cfg_.normal_rad);
   norm_est.setInputCloud (data_.input_);
   norm_est.compute (*data_.normals_);
 }
+
+void Preprocessor::computeNormalsINT()
+{
+  pcl::IntegralImageNormalEstimation<Point, Normal> ne;
+  ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
+  ne.setMaxDepthChangeFactor(descriptor_cfg_.normal_int_maxdepth);
+  ne.setNormalSmoothingSize(descriptor_cfg_.normal_int_smoothing);
+  ne.setInputCloud(data_.input_);
+  ne.compute(*data_.normals_);
+}
+
+void Preprocessor::computeNormalsMLS()
+{
+  pcl::search::KdTree<Point>::Ptr tree (new pcl::search::KdTree<Point>);
+  pcl::PointCloud<pcl::PointXYZRGBNormal> mls_points;
+  pcl::MovingLeastSquares<Point, pcl::PointXYZRGBNormal> mls;
+  mls.setComputeNormals (true);
+
+  mls.setInputCloud (data_.input_);
+  mls.setPolynomialFit (true);
+  mls.setSearchMethod (tree);
+  mls.setSearchRadius (descriptor_cfg_.normal_rad);
+
+  mls.process(mls_points);
+
+  pcl::copyPointCloud(mls_points, *data_.input_);
+  pcl::copyPointCloud(mls_points, *data_.normals_);
+}
+
 
 void Preprocessor::computeDescriptors()
 {
@@ -184,5 +226,6 @@ Preprocessor::Preprocessor(std::string name) : keypoint_srv_(name + "_keypoints"
   keypoint_srv_.setCallback(keypoint_server_cb);
   dynamic_reconfigure::Server<pcl_recognizer::DescriptorConfig>::CallbackType descriptor_server_cb;
   descriptor_server_cb = boost::bind(&Preprocessor::descriptor_cb, this, _1, _2);
+
   descriptor_srv_.setCallback(descriptor_server_cb);
 }

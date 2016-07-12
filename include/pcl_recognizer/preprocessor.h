@@ -81,6 +81,10 @@ private:
 
   void preprocess();
   void computeNormals();
+  void computeNormalsOMP();
+  void computeNormalsINT();
+  void computeNormalsMLS();
+
   void computeDescriptors();
   void computeReferenceFrames();
   void computeResolution();

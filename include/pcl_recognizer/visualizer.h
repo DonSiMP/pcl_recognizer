@@ -14,10 +14,13 @@ public:
   Visualizer(std::string title = "pcl_recognizer");
 
   void update(PreprocessedData& data);
+  void renderRecognition(Recognizer& rec);
   void spin();
 private:
   PreprocessedData data_;
   pcl::visualization::PCLVisualizer vis_;
+
+  bool show_recognition = false;
 
   pcl_recognizer::ViewerConfig cfg_;
   pcl_recognizer::ViewerConfig init_status_;
@@ -27,6 +30,9 @@ private:
 
   using ColorHandler = pcl::visualization::PointCloudColorHandler<Point>;
   void renderRGB(bool cfg, const Cloud::Ptr& data, const ColorHandler& rgb, const std::string& name, bool& status);
+  void renderNormals();
+
+  void point_pick_callback(const pcl::visualization::PointPickingEvent& event, void* viewer_void);
 };
 
 

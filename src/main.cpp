@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
 
         model_vis.update(model);
         scene_vis.update(scene);
+        rec_vis.renderRecognition(recognizer);
       }
       catch (const std::exception& ex)
       {
