@@ -3,10 +3,14 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/recognition/cg/geometric_consistency.h>
+#include <pcl_recognizer/config.h>
 
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
   scene_ = scene;
+
+  if(Config::get().stop_at < Config::StopAt::Grouping)
+    return 0;
 
   findCorrespondences();
   clusterize();

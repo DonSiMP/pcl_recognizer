@@ -80,20 +80,23 @@ private:
   void descriptor_cb(pcl_recognizer::DescriptorConfig &config, uint32_t level) { descriptor_cfg_ = config; }
 
   void preprocess();
+
   void computeNormals();
   void computeNormalsOMP();
   void computeNormalsINT();
   void computeNormalsMLS();
-
-  void computeDescriptors();
-  void computeReferenceFrames();
-  void computeResolution();
 
   void downsample();
   void downsampleUniform();
   void downsampleISS();
   void downsampleHarris();
   void downsampleSIFT();
+
+  void computeDescriptors();
+
+  void computeReferenceFrames();
+
+  void computeResolution();
 };
 
 #endif // PCL_RECOGNIZE_PREPROCESSOR_H

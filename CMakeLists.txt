@@ -36,7 +36,7 @@ file(GLOB HEADER_FILES
     include/pcl_recognizer/*.h
     include/pcl_recognizer/*/*.h
     )
-file(GLOB SOURCE_FILES src/*.cpp )
+file(GLOB SOURCE_FILES src/*.cpp)
 
 add_executable(pcl_recognizer ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(pcl_recognizer ${PCL_LIBRARIES} ${catkin_LIBRARIES})

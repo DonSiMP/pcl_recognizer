@@ -30,6 +30,8 @@ private:
 
   using ColorHandler = pcl::visualization::PointCloudColorHandler<Point>;
   void renderRGB(bool cfg, const Cloud::Ptr& data, const ColorHandler& rgb, const std::string& name, bool& status);
+  void renderInput();
+  void renderKeypoints();
   void renderNormals();
 
   void point_pick_callback(const pcl::visualization::PointPickingEvent& event, void* viewer_void);

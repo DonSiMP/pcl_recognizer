@@ -10,6 +10,8 @@
 
 #include <pcl/surface/mls.h>
 
+#include <pcl_recognizer/config.h>
+
 PreprocessedData Preprocessor::load(std::string file_name)
 {
   data_.reset();
@@ -18,6 +20,9 @@ PreprocessedData Preprocessor::load(std::string file_name)
   if (pcl::io::loadPCDFile(file_name, cloud2) == -1 || cloud2.width == 0)
     throw std::runtime_error("Failed to load model from " + file_name);
   pcl::fromPCLPointCloud2(cloud2, *data_.input_);
+
+  if(Config::get().stop_at <= Config::StopAt::Load)
+    return data_;
 
   auto fields = cloud2.fields;
   auto has_normals = std::any_of(std::begin(fields), std::end(fields),
@@ -36,6 +41,9 @@ void Preprocessor::preprocess()
   if(data_.normals_->size() == 0)
     computeNormals();
 
+  if(Config::get().stop_at <= Config::StopAt::Normals)
+    return;
+
   if(use_cloud_resolution_)
   {
     computeResolution();
@@ -43,6 +51,10 @@ void Preprocessor::preprocess()
   }
 
   downsample();
+
+  if(Config::get().stop_at <= Config::StopAt::Keypoints)
+    return;
+
   computeDescriptors();
   computeReferenceFrames();
 }
@@ -150,8 +162,12 @@ void Preprocessor::downsample()
 {
   if(keypoint_cfg_.method == 0)
     downsampleUniform();
-  else
+  else if(keypoint_cfg_.method == 1)
     downsampleISS();
+  else if(keypoint_cfg_.method == 2)
+    downsampleHarris();
+  else
+    downsampleSIFT();
   //downsampleHarris();
   //downsampleSIFT();
 
@@ -176,10 +192,9 @@ void Preprocessor::downsampleISS()
   auto iss_gamma_21_ = 0.975;
   auto iss_gamma_32_ = 0.975;
   auto iss_min_neighbors_ = 5;
-  auto  iss_threads_ = 4u;
+  auto iss_threads_ = 4u;
 
   auto iss_non_max_radius_ = keypoint_cfg_.iss_non_max_radius;//4 * resolution_;
-  auto iss_normal_radius_ = keypoint_cfg_.iss_normal_radius;//4 * resolution_;
   auto iss_border_radius_ = keypoint_cfg_.iss_border_radius;//1 * resolution_;
   auto iss_salient_radius_ = keypoint_cfg_.iss_salient_radius;//6 * resolution_;
 
@@ -189,13 +204,11 @@ void Preprocessor::downsampleISS()
 //
 // Compute keypoints
 //
-  pcl::ISSKeypoint3D<pcl::PointXYZRGBA, pcl::PointXYZRGBA> iss_detector;
+  pcl::ISSKeypoint3D<Point, Point> iss_detector;
 
   iss_detector.setSearchMethod (tree);
   iss_detector.setSalientRadius (iss_salient_radius_);
   iss_detector.setNonMaxRadius (iss_non_max_radius_);
-
-  iss_detector.setNormalRadius (iss_normal_radius_);
   iss_detector.setBorderRadius (iss_border_radius_);
 
   iss_detector.setThreshold21 (iss_gamma_21_);
@@ -203,20 +216,35 @@ void Preprocessor::downsampleISS()
   iss_detector.setMinNeighbors (iss_min_neighbors_);
   iss_detector.setNumberOfThreads (iss_threads_);
   iss_detector.setInputCloud (data_.input_);
+  iss_detector.setNormals (data_.normals_);
   iss_detector.compute (*data_.keypoints_);
 
   auto indices = iss_detector.getKeypointsIndices();
   *data_.keypoint_idxes_ = indices->indices;
 }
 
+#include <pcl/keypoints/harris_6d.h>
 void Preprocessor::downsampleHarris()
 {
-
+  /*pcl::HarrisKeypoint6D<Point, Point> harris6d_detector;
+  pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>);
+  harris6d_detector.setSearchMethod(tree);
+  harris6d_detector.setRadius(0.02);
+  harris6d_detector.setNumberOfThreads(4);
+  harris6d_detector.setInputCloud(data_.input_);
+  harris6d_detector.compute(*data_.keypoints_);*/
 }
 
+#include <pcl/keypoints/sift_keypoint.h>
 void Preprocessor::downsampleSIFT()
 {
-
+  pcl::SIFTKeypoint<Point, Point> sift_detector;
+  pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>);
+  sift_detector.setSearchMethod(tree);
+  sift_detector.setScales (0.02f, 5, 3);
+  sift_detector.setMinimumContrast (0.03f);
+  sift_detector.setInputCloud(data_.input_);
+  sift_detector.compute(*data_.keypoints_);
 }
 
 Preprocessor::Preprocessor(std::string name) : keypoint_srv_(name + "_keypoints"), descriptor_srv_(name + "_descriptors")

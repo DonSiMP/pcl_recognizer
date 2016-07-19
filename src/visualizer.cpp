@@ -1,5 +1,6 @@
+#include <pcl_recognizer/config.h>
 #include <pcl_recognizer/recognizer.h>
-#include "pcl_recognizer/visualizer.h"
+#include <pcl_recognizer/visualizer.h>
 #include <pcl/common/transforms.h>
 
 Visualizer::Visualizer(std::string title) : vis_(title), cfg_srv_(title)
@@ -59,34 +60,63 @@ void Visualizer::renderRecognition(Recognizer& rec)
   }
 
   vis_.removeCorrespondences();
-  vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, *rec.getCorrs());
+
+  if((Config::get().stop_at >= Config::StopAt::Grouping))
+    vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, *rec.getCorrs());
 }
 
 void Visualizer::renderRGB(bool cfg, const Cloud::Ptr& data, const  ColorHandler& rgb, const std::string& name, bool& status)
 {
-  if(cfg)
+  if(!status)
   {
-    if(!status)
-    {
-      vis_.addPointCloud(data, rgb, name);
-      status = true;
-    }
-    else
-      vis_.updatePointCloud(data, rgb, name);
+    vis_.addPointCloud(data, rgb, name);
+    status = true;
   }
-  else if (status)
+  else
+    vis_.updatePointCloud(data, rgb, name);
+}
+
+void Visualizer::renderInput()
+{
+  if(cfg_.input)
   {
-    vis_.removePointCloud(name);
-    status = false;
+    pcl::visualization::PointCloudColorHandlerRGBField<Point> colorInput(data_.input_);
+    renderRGB(cfg_.input, data_.input_, colorInput, "input", init_status_.input);
+  }
+  else if (init_status_.input)
+  {
+    vis_.removePointCloud("input");
+    init_status_.input = false;
   }
 }
 
 void Visualizer::renderNormals()
 {
-  if(cfg_.normals)
+  if (init_status_.normals)
   {
     vis_.removePointCloud("normals");
+    init_status_.normals = false;
+  }
+
+  if(cfg_.normals && (Config::get().stop_at >= Config::StopAt::Normals))
+  {
     vis_.addPointCloudNormals<Point, Normal>(data_.input_, data_.normals_, 10, 0.02, "normals");
+    init_status_.normals = true;
+  }
+}
+
+void Visualizer::renderKeypoints()
+{
+  if(cfg_.keypoints && (Config::get().stop_at >= Config::StopAt::Keypoints))
+  {
+    pcl::visualization::PointCloudColorHandlerCustom<Point> colorKeypoints(data_.keypoints_, 255, 0, 0);
+    renderRGB(cfg_.keypoints, data_.getKeypointCloud(), colorKeypoints, "keypoints", init_status_.keypoints);
+    vis_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints");
+  }
+  else if (init_status_.keypoints)
+  {
+    vis_.removePointCloud("keypoints");
+    init_status_.keypoints = false;
   }
 }
 
@@ -94,12 +124,9 @@ void Visualizer::spin()
 {
   if(cfg_.update && !show_recognition)
   {
-    pcl::visualization::PointCloudColorHandlerRGBField<Point> colorInput(data_.input_);
-    renderRGB(cfg_.input, data_.input_, colorInput, "input", init_status_.input);
-    pcl::visualization::PointCloudColorHandlerCustom<Point> colorKeypoints(data_.input_, 255, 0, 0);
-    renderRGB(cfg_.keypoints, data_.getKeypointCloud(), colorKeypoints, "keypoints", init_status_.keypoints);
-    vis_.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints");
+    renderInput();
     renderNormals();
+    renderKeypoints();
   }
   vis_.spinOnce(1000);
 }
