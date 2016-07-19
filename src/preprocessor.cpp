@@ -1,16 +1,14 @@
-#include "pcl_recognizer/preprocessor.h"
+#include <pcl_recognizer/preprocessor.h>
 
 #include <pcl/features/board.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/shot_omp.h>
 #include <pcl/io/pcd_io.h>
-
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/keypoints/iss_3d.h>
-
 #include <pcl/surface/mls.h>
-
 #include <pcl_recognizer/config.h>
+#include <pcl_recognizer/utils.h>
 
 PreprocessedData Preprocessor::load(std::string file_name)
 {
@@ -61,6 +59,8 @@ void Preprocessor::preprocess()
 
 void Preprocessor::computeNormals()
 {
+  Timer::Scoped timer("Normals");
+
   if(descriptor_cfg_.normal_method == 0)
     computeNormalsOMP();
   else if(descriptor_cfg_.normal_method == 1)
@@ -110,6 +110,8 @@ void Preprocessor::computeNormalsMLS()
 
 void Preprocessor::computeDescriptors()
 {
+  Timer::Scoped timer("Descriptors");
+
   pcl::SHOTEstimationOMP<Point, Normal, Descriptor> descr_est;
   descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
 
@@ -121,6 +123,8 @@ void Preprocessor::computeDescriptors()
 
 void Preprocessor::computeReferenceFrames()
 {
+  Timer::Scoped timer("Reference frames");
+
   pcl::BOARDLocalReferenceFrameEstimation<Point, Normal, ReferenceFrame> rf_est;
   rf_est.setFindHoles (true);
   rf_est.setRadiusSearch (descriptor_cfg_.rf_rad);
@@ -133,6 +137,8 @@ void Preprocessor::computeReferenceFrames()
 
 void Preprocessor::computeResolution()
 {
+  Timer::Scoped timer("Resolution");
+
   int n_points = 0;
   std::vector<int> indices(2);
   std::vector<float> sqr_distances(2);
@@ -160,6 +166,8 @@ void Preprocessor::computeResolution()
 
 void Preprocessor::downsample()
 {
+  Timer::Scoped timer("Keypoints");
+
   if(keypoint_cfg_.method == 0)
     downsampleUniform();
   else if(keypoint_cfg_.method == 1)
@@ -168,8 +176,6 @@ void Preprocessor::downsample()
     downsampleHarris();
   else
     downsampleSIFT();
-  //downsampleHarris();
-  //downsampleSIFT();
 
   std::cout <<
   "Cloud total points: " <<

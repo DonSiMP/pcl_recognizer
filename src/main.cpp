@@ -6,7 +6,7 @@
 #include <pcl_recognizer/config.h>
 
 static constexpr auto MODEL_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/3D_model.pcd";
-static constexpr auto SCENE_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/views/cloud_00000000.pcd";
+static constexpr auto SCENE_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/views/cloud_00000004.pcd";
 
 int main(int argc, char *argv[])
 {

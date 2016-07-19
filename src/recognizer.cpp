@@ -4,6 +4,7 @@
 #include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/recognition/cg/geometric_consistency.h>
 #include <pcl_recognizer/config.h>
+#include <pcl_recognizer/utils.h>
 
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
@@ -18,8 +19,17 @@ int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
   return foundInstances.size();
 }
 
+void Recognizer::cfg_cb(pcl_recognizer::GroupingConfig& config, uint32_t level)
+{
+  use_hough_ = config.use_hough;
+  cg_size_ = static_cast<float>(config.cg_size);
+  cg_thresh_ = static_cast<float>(config.cg_thresh);
+}
+
 void Recognizer::findCorrespondences()
 {
+  Timer::Scoped timer("Correspondences");
+
   model_scene_corrs.reset(new pcl::Correspondences ());
 
   pcl::KdTreeFLANN<Descriptor> match_search;
@@ -53,9 +63,16 @@ void Recognizer::findCorrespondences()
 
 void Recognizer::clusterize()
 {
-  if(!use_hough_)
-    clusterizeWithGC();
+  Timer::Scoped timer("Clustering");
 
+  if(use_hough_)
+    clusterizeHough();
+  else
+    clusterizeGC();
+}
+
+void Recognizer::clusterizeHough()
+{
   std::vector<pcl::Correspondences> clustered_corrs;
 
   pcl::Hough3DGrouping<Point, Point, ReferenceFrame, ReferenceFrame> clusterer;
@@ -73,14 +90,7 @@ void Recognizer::clusterize()
   clusterer.recognize (foundInstances, clustered_corrs);
 }
 
-void Recognizer::cfg_cb(pcl_recognizer::GroupingConfig& config, uint32_t level)
-{
-  use_hough_ = config.use_hough;
-  cg_size_ = static_cast<float>(config.cg_size);
-  cg_thresh_ = static_cast<float>(config.cg_thresh);
-}
-
-void Recognizer::clusterizeWithGC()
+void Recognizer::clusterizeGC()
 {
   std::vector<pcl::Correspondences> clustered_corrs;
 
@@ -93,5 +103,4 @@ void Recognizer::clusterizeWithGC()
   gc_clusterer.setModelSceneCorrespondences (model_scene_corrs);
 
   gc_clusterer.recognize (foundInstances, clustered_corrs);
-
 }

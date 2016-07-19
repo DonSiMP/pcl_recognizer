@@ -22,7 +22,6 @@ private:
   PoseVector foundInstances;
   //Algorithm params
   bool use_hough_ = false;
-
   float cg_size_ = 0.01f;
   float cg_thresh_ = 5.0f;
 
@@ -30,7 +29,8 @@ private:
 
   void findCorrespondences();
   void clusterize();
-  void clusterizeWithGC();
+  void clusterizeHough();
+  void clusterizeGC();
 };
 
 

@@ -3,24 +3,27 @@
 #include <chrono>
 #include <iostream>
 
-void Timer::start()
+namespace Timer
 {
-  duration(false);
-}
-
-void Timer::end()
-{
-  duration(true);
-}
-
-void Timer::duration(bool print)
+void duration(bool print, std::string name = "")
 {
   using hrc = std::chrono::high_resolution_clock;
   static auto last = hrc::now();
   if (print)
-    std::cout <<
-        "Timer duration: " <<
-        std::chrono::duration_cast<std::chrono::nanoseconds>(hrc::now() - last).count() <<
-        std::endl;
+    std::cout << name <<
+    " duration: " <<
+    std::chrono::duration_cast<std::chrono::duration<double>>(hrc::now() - last).count() <<
+    std::endl;
   last = hrc::now();
+}
+
+void start()
+{
+  duration(false);
+}
+
+void end(std::string name)
+{
+  duration(true, name);
+}
 }

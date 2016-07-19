@@ -1,14 +1,21 @@
 #ifndef PCL_RECOGNIZE_UTILS_H
 #define PCL_RECOGNIZE_UTILS_H
 
-class Timer
+#include <string>
+
+namespace Timer
+{
+void start();
+void end(std::string name);
+
+class Scoped
 {
 public:
-  static void start();
-  static void end();
-
+  Scoped(std::string name = "Timer"): name_(name) { Timer::start(); };
+  ~Scoped() { Timer::end(name_); };
 private:
-  static void duration(bool print);
+  std::string name_;
+};
 };
 
 
