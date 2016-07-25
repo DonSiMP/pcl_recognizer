@@ -19,11 +19,12 @@ int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
   return foundInstances.size();
 }
 
-void Recognizer::cfg_cb(pcl_recognizer::GroupingConfig& config, uint32_t level)
+void Recognizer::grouping_cb(pcl_recognizer::GroupingConfig& config, uint32_t level)
 {
   use_hough_ = config.use_hough;
-  cg_size_ = static_cast<float>(config.cg_size);
-  cg_thresh_ = static_cast<float>(config.cg_thresh);
+  cg_size_ = static_cast<float>(config.cluster_size);
+  cg_thresh_ = static_cast<float>(config.cluster_thresh);
+  corr_dist_ = static_cast<float>(config.corr_distance);
 }
 
 void Recognizer::findCorrespondences()
@@ -49,7 +50,7 @@ void Recognizer::findCorrespondences()
     int found_neighs = match_search.nearestKSearch (scene_.descriptors_->at(i), 1, neigh_indices, neigh_sqr_dists);
     // add match only if the squared descriptor distance is
     // less than 0.25 (SHOT descriptor distances are between 0 and 1 by design)
-    if(found_neighs == 1 && neigh_sqr_dists[0] < 0.25f)
+    if(found_neighs == 1 && neigh_sqr_dists[0] < corr_dist_)
     {
       pcl::Correspondence corr (neigh_indices[0], static_cast<int> (i), neigh_sqr_dists[0]);
       model_scene_corrs->push_back (corr);
@@ -73,8 +74,6 @@ void Recognizer::clusterize()
 
 void Recognizer::clusterizeHough()
 {
-  std::vector<pcl::Correspondences> clustered_corrs;
-
   pcl::Hough3DGrouping<Point, Point, ReferenceFrame, ReferenceFrame> clusterer;
   clusterer.setHoughBinSize (cg_size_);
   clusterer.setHoughThreshold (cg_thresh_);
@@ -87,20 +86,25 @@ void Recognizer::clusterizeHough()
   clusterer.setSceneRf (scene_.rf_);
   clusterer.setModelSceneCorrespondences (model_scene_corrs);
 
-  clusterer.recognize (foundInstances, clustered_corrs);
+  clusterer.recognize (foundInstances, correspondence_clusters_);
 }
 
 void Recognizer::clusterizeGC()
 {
-  std::vector<pcl::Correspondences> clustered_corrs;
-
   pcl::GeometricConsistencyGrouping<Point, Point> gc_clusterer;
   gc_clusterer.setGCSize (cg_size_);
-  gc_clusterer.setGCThreshold (cg_thresh_);
+  gc_clusterer.setGCThreshold (static_cast<int>(cg_thresh_));
 
   gc_clusterer.setInputCloud (model_.keypoints_);
   gc_clusterer.setSceneCloud (scene_.keypoints_);
   gc_clusterer.setModelSceneCorrespondences (model_scene_corrs);
 
-  gc_clusterer.recognize (foundInstances, clustered_corrs);
+  gc_clusterer.recognize (foundInstances, correspondence_clusters_);
+}
+
+Recognizer::Recognizer(): grouping_srv_(std::string("recognizer_grouping"))
+{
+  dynamic_reconfigure::Server<pcl_recognizer::GroupingConfig>::CallbackType grouping_server_cb;
+  grouping_server_cb = boost::bind(&Recognizer::grouping_cb, this, _1, _2);
+  grouping_srv_.setCallback(grouping_server_cb);
 }

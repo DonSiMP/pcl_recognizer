@@ -13,7 +13,7 @@ void duration(bool print, std::string name = "")
     std::cout << name <<
     " duration: " <<
     std::chrono::duration_cast<std::chrono::duration<double>>(hrc::now() - last).count() <<
-    std::endl;
+    "s" << std::endl;
   last = hrc::now();
 }
 

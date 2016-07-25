@@ -66,9 +66,6 @@ public:
   PreprocessedData load(std::string file_name);
 private:
   PreprocessedData data_;
-
-  // Resolution
-  bool use_cloud_resolution_ = true;
   double resolution_ = .0;
 
   // Dynamic reconfigure

@@ -3,6 +3,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/pcl_plotter.h>
 
 #include <pcl_recognizer/preprocessor.h>
 #include <pcl_recognizer/ViewerConfig.h>
@@ -19,7 +20,9 @@ public:
 private:
   PreprocessedData data_;
   pcl::visualization::PCLVisualizer vis_;
-
+  pcl::visualization::PCLPlotter plot_;
+  std::vector<pcl::PointXYZ> picked_points;
+  bool new_picks = false;
   bool show_recognition = false;
 
   pcl_recognizer::ViewerConfig cfg_;
@@ -33,8 +36,10 @@ private:
   void renderInput();
   void renderKeypoints();
   void renderNormals();
+  void renderDescriptors();
 
-  void point_pick_callback(const pcl::visualization::PointPickingEvent& event, void* viewer_void);
+  void point_pick_cb(const pcl::visualization::PointPickingEvent& event, void* viewer_void);
+  void keyboard_cb(const pcl::visualization::KeyboardEvent &event, void* viewer_void);
 };
 
 

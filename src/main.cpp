@@ -16,16 +16,17 @@ int main(int argc, char *argv[])
     ros::console::notifyLoggerLevelsChanged();
   }
 
+  Visualizer rec_vis("recognizer_visualizer");
   Preprocessor model_preprocessor("model");
   Visualizer model_vis("model_visualizer");
   Preprocessor scene_preprocessor("scene");
   Visualizer scene_vis("scene_visualizer");
-  Visualizer rec_vis("recognizer_visualizer");
 
   ros::Rate rate(5);
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
+  Recognizer recognizer;
   while(ros::ok())
   {
     if (Config::get().recalculate)
@@ -34,11 +35,9 @@ int main(int argc, char *argv[])
       try
       {
         auto model = model_preprocessor.load(MODEL_PATH);
-
-        Recognizer recognizer;
+        auto scene = scene_preprocessor.load(SCENE_PATH);
         recognizer.setModel(model);
 
-        auto scene = scene_preprocessor.load(SCENE_PATH);
         Pose pose;
         auto result = recognizer.recognize(scene, pose);
         std::cout << "Found " << result << " object instances" << std::endl;

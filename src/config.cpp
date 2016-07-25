@@ -17,3 +17,8 @@ void Config::params_cb(pcl_recognizer::RecognizerConfig &config, uint32_t level)
   if (config.recalculate)
     cfg = config;
 }
+
+bool Config::shouldSkip(Config::StopAt step)
+{
+  return (Config::get().stop_at > step) && Config::get().only_last;
+}

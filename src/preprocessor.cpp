@@ -9,26 +9,28 @@
 #include <pcl/surface/mls.h>
 #include <pcl_recognizer/config.h>
 #include <pcl_recognizer/utils.h>
+#include <pcl_recognizer/KeypointConfig.h>
 
 PreprocessedData Preprocessor::load(std::string file_name)
 {
-  data_.reset();
+  if(!Config::shouldSkip(Config::Load))
+  {
+    data_.reset();
 
-  pcl::PCLPointCloud2 cloud2;
-  if (pcl::io::loadPCDFile(file_name, cloud2) == -1 || cloud2.width == 0)
-    throw std::runtime_error("Failed to load model from " + file_name);
-  pcl::fromPCLPointCloud2(cloud2, *data_.input_);
+    pcl::PCLPointCloud2 cloud2;
+    if (pcl::io::loadPCDFile(file_name, cloud2) == -1 || cloud2.width == 0)
+      throw std::runtime_error("Failed to load model from " + file_name);
+    pcl::fromPCLPointCloud2(cloud2, *data_.input_);
 
-  if(Config::get().stop_at <= Config::StopAt::Load)
-    return data_;
+    if (Config::get().stop_at <= Config::StopAt::Load)
+      return data_;
 
-  auto fields = cloud2.fields;
-  auto has_normals = std::any_of(std::begin(fields), std::end(fields),
-                                 [](const pcl::PCLPointField& field)
-                                 { return field.name == "normal_x"; });
-  if(has_normals)
-    pcl::fromPCLPointCloud2(cloud2, *data_.normals_);
-
+    auto fields = cloud2.fields;
+    auto has_normals = std::any_of(std::begin(fields), std::end(fields),
+                                   [](const pcl::PCLPointField& field) { return field.name == "normal_x"; });
+    if (has_normals)
+      pcl::fromPCLPointCloud2(cloud2, *data_.normals_);
+  }
   preprocess();
 
   return data_;
@@ -36,13 +38,13 @@ PreprocessedData Preprocessor::load(std::string file_name)
 
 void Preprocessor::preprocess()
 {
-  if(data_.normals_->size() == 0)
+  if(data_.normals_->size() == 0 && !Config::shouldSkip(Config::Normals))
     computeNormals();
 
   if(Config::get().stop_at <= Config::StopAt::Normals)
     return;
 
-  if(use_cloud_resolution_)
+  if(keypoint_cfg_.iss_use_resolution)
   {
     computeResolution();
     std::cout << "Cloud resolution " << resolution_ << std::endl;
@@ -114,7 +116,7 @@ void Preprocessor::computeDescriptors()
 
   pcl::SHOTEstimationOMP<Point, Normal, Descriptor> descr_est;
   descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
-
+  descr_est.setNumberOfThreads(4);
   descr_est.setInputCloud (data_.keypoints_);
   descr_est.setInputNormals (data_.normals_);
   descr_est.setSearchSurface (data_.input_);
@@ -173,9 +175,9 @@ void Preprocessor::downsample()
   else if(keypoint_cfg_.method == 1)
     downsampleISS();
   else if(keypoint_cfg_.method == 2)
-    downsampleHarris();
-  else
     downsampleSIFT();
+  else
+    downsampleHarris();
 
   std::cout <<
   "Cloud total points: " <<
@@ -204,6 +206,13 @@ void Preprocessor::downsampleISS()
   auto iss_border_radius_ = keypoint_cfg_.iss_border_radius;//1 * resolution_;
   auto iss_salient_radius_ = keypoint_cfg_.iss_salient_radius;//6 * resolution_;
 
+  if(keypoint_cfg_.iss_use_resolution)
+  {
+    iss_non_max_radius_ = 8 * resolution_;
+    iss_border_radius_ = resolution_;
+    iss_salient_radius_ = 6 * resolution_;
+  }
+
   pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
   tree->setInputCloud(data_.input_);
 
@@ -229,16 +238,23 @@ void Preprocessor::downsampleISS()
   *data_.keypoint_idxes_ = indices->indices;
 }
 
-#include <pcl/keypoints/harris_6d.h>
+#include <pcl/keypoints/harris_3d.h>
 void Preprocessor::downsampleHarris()
 {
-  /*pcl::HarrisKeypoint6D<Point, Point> harris6d_detector;
+  pcl::PointCloud<pcl::PointXYZI> output;
+
+  pcl::HarrisKeypoint3D<Point, pcl::PointXYZI> harris_detector;
   pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>);
-  harris6d_detector.setSearchMethod(tree);
-  harris6d_detector.setRadius(0.02);
-  harris6d_detector.setNumberOfThreads(4);
-  harris6d_detector.setInputCloud(data_.input_);
-  harris6d_detector.compute(*data_.keypoints_);*/
+  harris_detector.setSearchMethod(tree);
+  harris_detector.setNonMaxSupression(keypoint_cfg_.harris_use_nonmaxima);
+  harris_detector.setRadius(keypoint_cfg_.harris_radius);
+  harris_detector.setRadiusSearch(keypoint_cfg_.harris_radius_search);
+  harris_detector.setNumberOfThreads(4);
+  harris_detector.setNormals(data_.normals_);
+  harris_detector.setInputCloud(data_.input_);
+  harris_detector.compute(output);
+
+  pcl::copyPointCloud(output, *data_.keypoints_);
 }
 
 #include <pcl/keypoints/sift_keypoint.h>
@@ -247,8 +263,10 @@ void Preprocessor::downsampleSIFT()
   pcl::SIFTKeypoint<Point, Point> sift_detector;
   pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>);
   sift_detector.setSearchMethod(tree);
-  sift_detector.setScales (0.02f, 5, 3);
-  sift_detector.setMinimumContrast (0.03f);
+  sift_detector.setScales (keypoint_cfg_.sift_min_scale,
+                           keypoint_cfg_.sift_nr_octaves,
+                           keypoint_cfg_.sift_nr_scales_per_octave);
+  sift_detector.setMinimumContrast (keypoint_cfg_.sift_min_contrast);
   sift_detector.setInputCloud(data_.input_);
   sift_detector.compute(*data_.keypoints_);
 }
@@ -258,8 +276,8 @@ Preprocessor::Preprocessor(std::string name) : keypoint_srv_(name + "_keypoints"
   dynamic_reconfigure::Server<pcl_recognizer::KeypointConfig>::CallbackType keypoint_server_cb;
   keypoint_server_cb = boost::bind(&Preprocessor::keypoint_cb, this, _1, _2);
   keypoint_srv_.setCallback(keypoint_server_cb);
+
   dynamic_reconfigure::Server<pcl_recognizer::DescriptorConfig>::CallbackType descriptor_server_cb;
   descriptor_server_cb = boost::bind(&Preprocessor::descriptor_cb, this, _1, _2);
-
   descriptor_srv_.setCallback(descriptor_server_cb);
 }
