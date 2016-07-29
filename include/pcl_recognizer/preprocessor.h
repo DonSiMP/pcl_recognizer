@@ -4,13 +4,15 @@
 #include <string>
 
 #include <dynamic_reconfigure/server.h>
-#include <pcl/point_types.h>
 
 #include <pcl/point_cloud.h>
-#include <pcl_recognizer/KeypointConfig.h>
-#include <pcl_recognizer/DescriptorConfig.h>
-#include <pcl/PointIndices.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/point_types.h>
+#include <pcl/PointIndices.h>
+
+#include <pcl_recognizer/denoiser.h>
+#include <pcl_recognizer/DescriptorConfig.h>
+#include <pcl_recognizer/KeypointConfig.h>
 
 using pcl::Normal;
 using Point = pcl::PointXYZRGBA;
@@ -68,6 +70,7 @@ private:
   PreprocessedData data_;
   double resolution_ = .0;
   bool normals_loaded = false;
+  Denoiser denoiser;
 
   // Dynamic reconfigure
   pcl_recognizer::KeypointConfig keypoint_cfg_;

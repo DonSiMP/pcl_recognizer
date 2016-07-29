@@ -1,0 +1,11 @@
+#ifndef PCL_RECOGNIZER_DENOISER_H
+#define PCL_RECOGNIZER_DENOISER_H
+
+
+class Denoiser
+{
+
+};
+
+
+#endif //PCL_RECOGNIZER_DENOISER_H

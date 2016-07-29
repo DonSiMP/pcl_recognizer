@@ -73,7 +73,8 @@ void Preprocessor::computeNormals()
 
 void Preprocessor::computeNormalsOMP()
 {
-  pcl::NormalEstimationOMP<Point, Normal> norm_est(10);
+  pcl::NormalEstimationOMP<Point, Normal> norm_est;
+  norm_est.setNumberOfThreads(descriptor_cfg_.omp_threads);
   norm_est.setKSearch (descriptor_cfg_.normal_ksize);
   norm_est.setRadiusSearch(descriptor_cfg_.normal_rad);
   norm_est.setInputCloud (data_.input_);
@@ -83,9 +84,9 @@ void Preprocessor::computeNormalsOMP()
 void Preprocessor::computeNormalsINT()
 {
   pcl::IntegralImageNormalEstimation<Point, Normal> ne;
-  ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
-  ne.setMaxDepthChangeFactor(descriptor_cfg_.normal_int_maxdepth);
-  ne.setNormalSmoothingSize(descriptor_cfg_.normal_int_smoothing);
+  ne.setNormalEstimationMethod(static_cast<decltype(ne.COVARIANCE_MATRIX)>(descriptor_cfg_.int_method));
+  ne.setMaxDepthChangeFactor(descriptor_cfg_.int_normal_maxdepth);
+  ne.setNormalSmoothingSize(descriptor_cfg_.int_normal_smoothing);
   ne.setInputCloud(data_.input_);
   ne.compute(*data_.normals_);
 }
@@ -171,7 +172,7 @@ void Preprocessor::downsampleISS()
   auto iss_gamma_21_ = 0.975;
   auto iss_gamma_32_ = 0.975;
   auto iss_min_neighbors_ = 5;
-  auto iss_threads_ = 4u;
+  auto iss_threads_ = descriptor_cfg_.omp_threads;
 
   auto iss_non_max_radius_ = keypoint_cfg_.iss_non_max_radius;//4 * resolution_;
   auto iss_border_radius_ = keypoint_cfg_.iss_border_radius;//1 * resolution_;
