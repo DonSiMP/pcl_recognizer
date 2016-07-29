@@ -7,20 +7,13 @@
 #include <pcl/features/shot_omp.h>
 #include <pcl/surface/mls.h>
 
-Describer::Describer(std::string cfg_name): descriptor_srv_(cfg_name)
-{
-  dynamic_reconfigure::Server<pcl_recognizer::DescriptorConfig>::CallbackType descriptor_server_cb;
-  descriptor_server_cb = boost::bind(&Describer::descriptor_cb, this, _1, _2);
-  descriptor_srv_.setCallback(descriptor_server_cb);
-}
-
 void Describer::computeNormals(PreprocessedData& data)
 {
   Timer::Scoped timer("Normals");
 
-  if(descriptor_cfg_.normal_method == 0)
+  if(cfg_.normal_method == 0)
     computeNormalsOMP(data);
-  else if(descriptor_cfg_.normal_method == 1)
+  else if(cfg_.normal_method == 1)
     computeNormalsINT(data);
   else
     computeNormalsMLS(data);
@@ -29,9 +22,9 @@ void Describer::computeNormals(PreprocessedData& data)
 void Describer::computeNormalsOMP(PreprocessedData& data)
 {
   pcl::NormalEstimationOMP<Point, Normal> norm_est;
-  norm_est.setNumberOfThreads(descriptor_cfg_.omp_threads);
-  norm_est.setKSearch (descriptor_cfg_.normal_ksize);
-  norm_est.setRadiusSearch(descriptor_cfg_.normal_rad);
+  norm_est.setNumberOfThreads(cfg_.omp_threads);
+  norm_est.setKSearch (cfg_.normal_ksize);
+  norm_est.setRadiusSearch(cfg_.normal_rad);
   norm_est.setInputCloud (data.input_);
   norm_est.compute (*data.normals_);
 }
@@ -39,9 +32,9 @@ void Describer::computeNormalsOMP(PreprocessedData& data)
 void Describer::computeNormalsINT(PreprocessedData& data)
 {
   pcl::IntegralImageNormalEstimation<Point, Normal> ne;
-  ne.setNormalEstimationMethod(static_cast<decltype(ne.COVARIANCE_MATRIX)>(descriptor_cfg_.int_method));
-  ne.setMaxDepthChangeFactor(descriptor_cfg_.int_normal_maxdepth);
-  ne.setNormalSmoothingSize(descriptor_cfg_.int_normal_smoothing);
+  ne.setNormalEstimationMethod(static_cast<decltype(ne.COVARIANCE_MATRIX)>(cfg_.int_method));
+  ne.setMaxDepthChangeFactor(cfg_.int_normal_maxdepth);
+  ne.setNormalSmoothingSize(cfg_.int_normal_smoothing);
   ne.setInputCloud(data.input_);
   ne.compute(*data.normals_);
 }
@@ -56,7 +49,7 @@ void Describer::computeNormalsMLS(PreprocessedData& data)
   mls.setInputCloud (data.input_);
   mls.setPolynomialFit (true);
   mls.setSearchMethod (tree);
-  mls.setSearchRadius (descriptor_cfg_.normal_rad);
+  mls.setSearchRadius (cfg_.normal_rad);
 
   mls.process(mls_points);
 
@@ -70,7 +63,7 @@ void Describer::computeReferenceFrames(PreprocessedData& data)
 
   pcl::BOARDLocalReferenceFrameEstimation<Point, Normal, ReferenceFrame> rf_est;
   rf_est.setFindHoles (true);
-  rf_est.setRadiusSearch (descriptor_cfg_.rf_rad);
+  rf_est.setRadiusSearch (cfg_.rf_rad);
 
   rf_est.setInputCloud (data.keypoints_);
   rf_est.setInputNormals (data.normals_);
@@ -83,7 +76,7 @@ void Describer::computeDescriptors(PreprocessedData& data)
   Timer::Scoped timer("Descriptors");
 
   pcl::SHOTColorEstimationOMP<Point, Normal> descr_est;
-  descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
+  descr_est.setRadiusSearch (cfg_.descr_rad);
   descr_est.setNumberOfThreads(4);
   descr_est.setInputCloud (data.keypoints_);
   descr_est.setInputNormals (data.normals_);

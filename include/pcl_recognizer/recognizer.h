@@ -1,16 +1,16 @@
 #ifndef PCL_RECOGNIZE_RECOGNIZER_H
 #define PCL_RECOGNIZE_RECOGNIZER_H
 
-#include <dynamic_reconfigure/server.h>
 #include <pcl_recognizer/preprocessor.h>
+#include <pcl_recognizer/reconfigurable.h>
 #include <pcl_recognizer/GroupingConfig.h>
 
 #include <pcl/correspondence.h>
 
-class Recognizer
+class Recognizer : Reconfigurable<pcl_recognizer::GroupingConfig>
 {
 public:
-  Recognizer();
+  Recognizer() : Reconfigurable("recognizer_grouping") {};
 
   void setModel(PreprocessedData& model) { model_ = model; }
   int recognize(const PreprocessedData& scene, Pose& pose);
@@ -28,14 +28,6 @@ private:
   std::vector<pcl::Correspondences> correspondence_clusters_;
   pcl::CorrespondencesPtr model_scene_corrs;
   PoseVector foundInstances;
-  //Algorithm params
-  bool use_hough_ = false;
-  float cg_size_ = 0.01f;
-  float cg_thresh_ = 5.0f;
-  float corr_dist_ = 0.25f;
-
-  void grouping_cb(pcl_recognizer::GroupingConfig& config, uint32_t level);
-  dynamic_reconfigure::Server<pcl_recognizer::GroupingConfig> grouping_srv_;
 
   void findCorrespondences();
   void clusterize();

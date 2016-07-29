@@ -11,6 +11,7 @@
 class Preprocessor {
 public:
   Preprocessor(std::string name = "Preprocessor") :
+      denoiser(name + "_denoise"),
       downsampler(name + "_keypoints"),
       describer(name + "_descriptors") {};
 

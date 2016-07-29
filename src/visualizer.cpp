@@ -3,7 +3,7 @@
 #include <pcl_recognizer/visualizer.h>
 #include <pcl/common/transforms.h>
 
-Visualizer::Visualizer(std::string title) : vis_(title), cfg_srv_(title), plot_(title.c_str())
+Visualizer::Visualizer(std::string title) : Reconfigurable(title), vis_(title), plot_(title.c_str())
 {
   vis_.setBackgroundColor (0.1, 0.1, 0.1);
   vis_.addCoordinateSystem (0.2);
@@ -14,10 +14,6 @@ Visualizer::Visualizer(std::string title) : vis_(title), cfg_srv_(title), plot_(
   init_status_.keypoints = false;
   init_status_.normals = false;
   init_status_.descriptors = false;
-
-  dynamic_reconfigure::Server<pcl_recognizer::ViewerConfig>::CallbackType params_server_cb;
-  params_server_cb = boost::bind(&Visualizer::params_cb, this, _1, _2);
-  cfg_srv_.setCallback(params_server_cb);
 
   vis_.registerPointPickingCallback(&Visualizer::point_pick_cb, *this);
   vis_.registerKeyboardCallback(&Visualizer::keyboard_cb, *this);
@@ -152,11 +148,6 @@ void Visualizer::spin()
   }
   vis_.spinOnce(1000);
   plot_.spinOnce(100);
-}
-
-void Visualizer::params_cb(pcl_recognizer::ViewerConfig& config, uint32_t level)
-{
-    cfg_ = config;
 }
 
 void Visualizer::point_pick_cb(const pcl::visualization::PointPickingEvent& event,
