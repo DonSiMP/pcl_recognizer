@@ -7,7 +7,6 @@
 class Config
 {
 public:
-
   enum StopAt
   {
     Load,
