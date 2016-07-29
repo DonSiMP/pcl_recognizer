@@ -37,8 +37,8 @@ void Visualizer::renderRecognition(Recognizer& rec)
   std::cout << "showing recognition " << std::endl;
   auto model = rec.getModel();
   Cloud::Ptr off_scene_model(new Cloud()), off_scene_model_keypoints(new Cloud());
-  pcl::transformPointCloud (*model.input_, *off_scene_model, Eigen::Vector3f (-1,0,0), Eigen::Quaternionf (1, 0, 0, 0));
-  pcl::transformPointCloud (*model.keypoints_, *off_scene_model_keypoints, Eigen::Vector3f (-1,0,0), Eigen::Quaternionf (1, 0, 0, 0));
+  pcl::transformPointCloud (*model.input_, *off_scene_model, Eigen::Vector3f (-.5,0,0), Eigen::Quaternionf (0.5, 0, 0.86603, 0));
+  pcl::transformPointCloud (*model.keypoints_, *off_scene_model_keypoints, Eigen::Vector3f (-.5,0,0), Eigen::Quaternionf (0.5, 0, 0.86603, 0));
   {
     vis_.removePointCloud("model_input");
     vis_.removePointCloud("model_keypoints");

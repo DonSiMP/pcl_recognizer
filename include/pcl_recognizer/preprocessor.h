@@ -18,7 +18,7 @@ using Cloud = pcl::PointCloud<Point>;
 using NormalCloud = pcl::PointCloud<Normal>;
 using Pose = Eigen::Matrix4f;
 using PoseVector = std::vector<Pose, Eigen::aligned_allocator<Pose>>;
-using Descriptor = pcl::SHOT352;
+using Descriptor = pcl::SHOT1344;
 using DescriptorCloud = pcl::PointCloud<Descriptor>;
 using pcl::ReferenceFrame;
 using RFCloud = pcl::PointCloud<ReferenceFrame>;
@@ -89,9 +89,11 @@ private:
   void downsampleHarris();
   void downsampleSIFT();
 
-  void computeDescriptors();
-
   void computeReferenceFrames();
+
+  void computeDescriptors();
+  void computeDescriptorsSHOT();
+  void computeDescriptorsColorSHOT();
 
   void computeResolution();
 };

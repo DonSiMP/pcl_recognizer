@@ -9,13 +9,11 @@
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
   scene_ = scene;
-
-  if(Config::get().stop_at < Config::StopAt::Grouping)
-    return 0;
-
-  findCorrespondences();
-  clusterize();
-
+  if(!Config::shouldSkip(Config::Grouping))
+  {
+    findCorrespondences();
+    clusterize();
+  }
   return foundInstances.size();
 }
 
@@ -64,6 +62,8 @@ void Recognizer::findCorrespondences()
 
 void Recognizer::clusterize()
 {
+  correspondence_clusters_.clear();
+
   Timer::Scoped timer("Clustering");
 
   if(use_hough_)

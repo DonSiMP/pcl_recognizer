@@ -4,8 +4,10 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/shot_omp.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/keypoints/iss_3d.h>
+#include <pcl/keypoints/harris_3d.h>
+#include <pcl/keypoints/sift_keypoint.h>
+#include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/surface/mls.h>
 #include <pcl_recognizer/config.h>
 #include <pcl_recognizer/utils.h>
@@ -41,22 +43,21 @@ void Preprocessor::preprocess()
   if(data_.normals_->size() == 0 && !Config::shouldSkip(Config::Normals))
     computeNormals();
 
-  if(Config::get().stop_at <= Config::StopAt::Normals)
-    return;
-
-  if(keypoint_cfg_.iss_use_resolution)
+  if(!Config::shouldSkip(Config::Keypoints))
   {
-    computeResolution();
-    std::cout << "Cloud resolution " << resolution_ << std::endl;
+    if (keypoint_cfg_.iss_use_resolution)
+    {
+      computeResolution();
+      std::cout << "Cloud resolution " << resolution_ << std::endl;
+    }
+    downsample();
   }
 
-  downsample();
-
-  if(Config::get().stop_at <= Config::StopAt::Keypoints)
-    return;
-
-  computeDescriptors();
-  computeReferenceFrames();
+  if(!Config::shouldSkip(Config::Descriptors))
+  {
+    computeReferenceFrames();
+    computeDescriptors();
+  }
 }
 
 void Preprocessor::computeNormals()
@@ -107,34 +108,6 @@ void Preprocessor::computeNormalsMLS()
 
   pcl::copyPointCloud(mls_points, *data_.input_);
   pcl::copyPointCloud(mls_points, *data_.normals_);
-}
-
-
-void Preprocessor::computeDescriptors()
-{
-  Timer::Scoped timer("Descriptors");
-
-  pcl::SHOTEstimationOMP<Point, Normal, Descriptor> descr_est;
-  descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
-  descr_est.setNumberOfThreads(4);
-  descr_est.setInputCloud (data_.keypoints_);
-  descr_est.setInputNormals (data_.normals_);
-  descr_est.setSearchSurface (data_.input_);
-  descr_est.compute (*data_.descriptors_);
-}
-
-void Preprocessor::computeReferenceFrames()
-{
-  Timer::Scoped timer("Reference frames");
-
-  pcl::BOARDLocalReferenceFrameEstimation<Point, Normal, ReferenceFrame> rf_est;
-  rf_est.setFindHoles (true);
-  rf_est.setRadiusSearch (descriptor_cfg_.rf_rad);
-
-  rf_est.setInputCloud (data_.keypoints_);
-  rf_est.setInputNormals (data_.normals_);
-  rf_est.setSearchSurface (data_.input_);
-  rf_est.compute (*data_.rf_);
 }
 
 void Preprocessor::computeResolution()
@@ -238,7 +211,6 @@ void Preprocessor::downsampleISS()
   *data_.keypoint_idxes_ = indices->indices;
 }
 
-#include <pcl/keypoints/harris_3d.h>
 void Preprocessor::downsampleHarris()
 {
   pcl::PointCloud<pcl::PointXYZI> output;
@@ -257,7 +229,6 @@ void Preprocessor::downsampleHarris()
   pcl::copyPointCloud(output, *data_.keypoints_);
 }
 
-#include <pcl/keypoints/sift_keypoint.h>
 void Preprocessor::downsampleSIFT()
 {
   pcl::SIFTKeypoint<Point, Point> sift_detector;
@@ -269,6 +240,32 @@ void Preprocessor::downsampleSIFT()
   sift_detector.setMinimumContrast (keypoint_cfg_.sift_min_contrast);
   sift_detector.setInputCloud(data_.input_);
   sift_detector.compute(*data_.keypoints_);
+}
+
+void Preprocessor::computeReferenceFrames()
+{
+  Timer::Scoped timer("Reference frames");
+
+  pcl::BOARDLocalReferenceFrameEstimation<Point, Normal, ReferenceFrame> rf_est;
+  rf_est.setFindHoles (true);
+  rf_est.setRadiusSearch (descriptor_cfg_.rf_rad);
+
+  rf_est.setInputCloud (data_.keypoints_);
+  rf_est.setInputNormals (data_.normals_);
+  rf_est.setSearchSurface (data_.input_);
+  rf_est.compute (*data_.rf_);
+}
+
+void Preprocessor::computeDescriptors()
+{
+  pcl::SHOTColorEstimationOMP<Point, Normal> descr_est;
+  descr_est.setRadiusSearch (descriptor_cfg_.descr_rad);
+  descr_est.setNumberOfThreads(4);
+  descr_est.setInputCloud (data_.keypoints_);
+  descr_est.setInputNormals (data_.normals_);
+  descr_est.setInputReferenceFrames(data_.rf_);
+  descr_est.setSearchSurface (data_.input_);
+  descr_est.compute(*data_.descriptors_);
 }
 
 Preprocessor::Preprocessor(std::string name) : keypoint_srv_(name + "_keypoints"), descriptor_srv_(name + "_descriptors")
