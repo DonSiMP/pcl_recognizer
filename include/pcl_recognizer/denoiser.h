@@ -10,6 +10,9 @@ class Denoiser : Reconfigurable<pcl_recognizer::DenoiseConfig>
 public:
   Denoiser(std::string name = "Denoise") : Reconfigurable(name) {};
 
+  void removeNaNs(PreprocessedData& data);
+  void removeGhostPoints(PreprocessedData& data);
+  void refineNormals(PreprocessedData& data);
 private:
 };
 
