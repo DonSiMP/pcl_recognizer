@@ -20,7 +20,7 @@ public:
   };
 
   static pcl_recognizer::RecognizerConfig& get();
-  static bool shouldSkip(Config::StopAt step);
+  static bool shouldRun(Config::StopAt step);
 
 private:
   pcl_recognizer::RecognizerConfig cfg;

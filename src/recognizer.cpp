@@ -9,11 +9,13 @@
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
   scene_ = scene;
-  if(!Config::shouldSkip(Config::Grouping))
+  if(Config::shouldRun(Config::Grouping))
   {
     findCorrespondences();
     clusterize();
   }
+
+  done = true;
   return foundInstances.size();
 }
 
@@ -36,21 +38,21 @@ void Recognizer::findCorrespondences()
 
   // For each scene keypoint descriptor, find nearest neighbor into the
   // model keypoints descriptor cloud and add it to the correspondences vector.
-  for (size_t i = 0; i < scene_.descriptors_->size (); ++i)
+  for (size_t descr_idx = 0; descr_idx < scene_.descriptors_->size (); ++descr_idx)
   {
-    std::vector<int> neigh_indices (1);
-    std::vector<float> neigh_sqr_dists (1);
-    if (!pcl_isfinite (scene_.descriptors_->at (i).descriptor[0])) //skipping NaNs
+    std::vector<int> neigh_indices (5);
+    std::vector<float> neigh_sqr_dists (5);
+    if (!pcl_isfinite (scene_.descriptors_->at (descr_idx).descriptor[0])) //skipping NaNs
     {
       ROS_INFO("Infinite descriptor");
       continue;
     }
-    int found_neighs = match_search.nearestKSearch (scene_.descriptors_->at(i), 1, neigh_indices, neigh_sqr_dists);
+    int found_neighs = match_search.radiusSearch(scene_.descriptors_->at(descr_idx), corr_dist_, neigh_indices, neigh_sqr_dists, 5);
     // add match only if the squared descriptor distance is
     // less than 0.25 (SHOT descriptor distances are between 0 and 1 by design)
-    if(found_neighs == 1 && neigh_sqr_dists[0] < corr_dist_)
+    for(int corr_idx = 0; corr_idx < found_neighs; corr_idx++)
     {
-      pcl::Correspondence corr (neigh_indices[0], static_cast<int> (i), neigh_sqr_dists[0]);
+      pcl::Correspondence corr (neigh_indices[corr_idx], static_cast<int>(descr_idx), neigh_sqr_dists[corr_idx]);
       model_scene_corrs->push_back (corr);
     }
   }

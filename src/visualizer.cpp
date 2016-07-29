@@ -33,7 +33,10 @@ void Visualizer::update(PreprocessedData& data)
 
 void Visualizer::renderRecognition(Recognizer& rec)
 {
+  if(!rec.finished())
+    return;
   show_recognition = true;
+
   std::cout << "showing recognition " << std::endl;
   auto model = rec.getModel();
   Cloud::Ptr off_scene_model(new Cloud()), off_scene_model_keypoints(new Cloud());

@@ -15,7 +15,7 @@
 
 PreprocessedData Preprocessor::load(std::string file_name)
 {
-  if(!Config::shouldSkip(Config::Load))
+  if(Config::shouldRun(Config::Load))
   {
     data_.reset();
 
@@ -24,13 +24,11 @@ PreprocessedData Preprocessor::load(std::string file_name)
       throw std::runtime_error("Failed to load model from " + file_name);
     pcl::fromPCLPointCloud2(cloud2, *data_.input_);
 
-    if (Config::get().stop_at <= Config::StopAt::Load)
-      return data_;
-
     auto fields = cloud2.fields;
-    auto has_normals = std::any_of(std::begin(fields), std::end(fields),
-                                   [](const pcl::PCLPointField& field) { return field.name == "normal_x"; });
-    if (has_normals)
+    normals_loaded = std::any_of(std::begin(fields), std::end(fields),
+                                   [](const pcl::PCLPointField& field)
+                                   { return field.name == "normal_x"; });
+    if(normals_loaded)
       pcl::fromPCLPointCloud2(cloud2, *data_.normals_);
   }
   preprocess();
@@ -40,10 +38,10 @@ PreprocessedData Preprocessor::load(std::string file_name)
 
 void Preprocessor::preprocess()
 {
-  if(data_.normals_->size() == 0 && !Config::shouldSkip(Config::Normals))
+  if(!normals_loaded && Config::shouldRun(Config::Normals))
     computeNormals();
 
-  if(!Config::shouldSkip(Config::Keypoints))
+  if(Config::shouldRun(Config::Keypoints))
   {
     if (keypoint_cfg_.iss_use_resolution)
     {
@@ -53,7 +51,7 @@ void Preprocessor::preprocess()
     downsample();
   }
 
-  if(!Config::shouldSkip(Config::Descriptors))
+  if(Config::shouldRun(Config::Descriptors))
   {
     computeReferenceFrames();
     computeDescriptors();

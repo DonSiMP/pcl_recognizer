@@ -67,6 +67,7 @@ public:
 private:
   PreprocessedData data_;
   double resolution_ = .0;
+  bool normals_loaded = false;
 
   // Dynamic reconfigure
   pcl_recognizer::KeypointConfig keypoint_cfg_;

@@ -18,7 +18,10 @@ void Config::params_cb(pcl_recognizer::RecognizerConfig &config, uint32_t level)
     cfg = config;
 }
 
-bool Config::shouldSkip(Config::StopAt step)
+bool Config::shouldRun(Config::StopAt step)
 {
-  return (Config::get().stop_at > step) && Config::get().only_last;
+  if (Config::get().only_last)
+    return step == Config::get().stop_at;
+  else
+    return step <= Config::get().stop_at;
 }
