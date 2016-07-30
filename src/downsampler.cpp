@@ -10,14 +10,23 @@ void Downsampler::computeKeypoints(PreprocessedData& data)
 {
   Timer::Scoped timer("Keypoints");
 
-  if(cfg_.method == 0)
-    downsampleUniform(data);
-  else if(cfg_.method == 1)
-    downsampleISS(data);
-  else if(cfg_.method == 2)
-    downsampleSIFT(data);
-  else
-    downsampleHarris(data);
+  switch(static_cast<Method>(cfg_.method))
+  {
+    case Method::None:
+      pcl::copyPointCloud(*data.input_,*data.keypoints_);
+      break;
+    case Method::Uniform:
+      downsampleUniform(data);
+      break;
+    case Method::ISS:
+      downsampleISS(data);
+      break;
+    case Method::Sift:
+      downsampleSIFT(data);
+      break;
+    default:
+      downsampleHarris(data);
+  }
 
   std::cout <<
   "Cloud total points: " <<

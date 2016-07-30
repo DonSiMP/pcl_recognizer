@@ -8,6 +8,20 @@
 class Downsampler : Reconfigurable<pcl_recognizer::KeypointConfig>
 {
 public:
+
+  enum class Method
+  {
+    None,
+    Uniform,
+    ISS,
+    Sift,
+    H3DHarris,
+    H3DTomasi,
+    H3DNoble,
+    H3DLowe,
+    H3DCurvature
+  };
+
   Downsampler(std::string name = "Downsampler") : Reconfigurable(name) {};
 
   void computeKeypoints(PreprocessedData& data);
