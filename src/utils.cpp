@@ -1,29 +1,43 @@
 #include "pcl_recognizer/utils.h"
 
-#include <chrono>
 #include <iostream>
 
 namespace Timer
 {
-void duration(bool print, std::string name = "")
+
+void log_duration(const std::string& caller, const tstamp& start, const tstamp& end)
 {
-  using hrc = std::chrono::high_resolution_clock;
+  std::cout << caller <<
+    " duration: " <<
+    std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count() <<
+    "s" << std::endl;
+}
+
+void static_duration(bool print, const std::string& name = "")
+{
   static auto last = hrc::now();
   if (print)
-    std::cout << name <<
-    " duration: " <<
-    std::chrono::duration_cast<std::chrono::duration<double>>(hrc::now() - last).count() <<
-    "s" << std::endl;
+    log_duration(name, hrc::now(), last);
   last = hrc::now();
 }
 
 void start()
 {
-  duration(false);
+  static_duration(false);
 }
 
 void end(std::string name)
 {
-  duration(true, name);
+  static_duration(true, name);
 }
+}
+
+Timer::Scoped::Scoped(std::string name): name_(name)
+{
+  start_ = hrc::now();
+}
+
+Timer::Scoped::~Scoped()
+{
+  log_duration(name_, start_, hrc::now());
 }
