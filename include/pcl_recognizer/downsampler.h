@@ -13,6 +13,7 @@ public:
   {
     None,
     Uniform,
+    Voxel,
     ISS,
     Sift,
     H3DHarris,
@@ -28,6 +29,7 @@ public:
 
 private:
   void downsampleUniform(PreprocessedData& data);
+  void downsampleVoxel(PreprocessedData& data);
   void downsampleISS(PreprocessedData& data);
   void downsampleHarris(PreprocessedData& data);
   void downsampleSIFT(PreprocessedData& data);

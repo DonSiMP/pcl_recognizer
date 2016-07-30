@@ -16,21 +16,22 @@ void Denoiser::removeNaNs(PreprocessedData& data)
   Timer::Scoped timer("RemoveNaNs");
 
   auto indices = std::vector<int>();
+  auto initial_size = data.input_->size();
   pcl::removeNaNFromPointCloud(*data.input_, *data.input_, indices);
 
-  std::cout << "Removed NaNs: " << indices.size() << std::endl;
+  std::cout << "Removed NaNs: " << initial_size - indices.size() << std::endl;
 }
 
 void Denoiser::removeGhostPoints(PreprocessedData& data)
 {
   Timer::Scoped timer("RemoveGhostPoints");
 
-  pcl::ShadowPoints<Point,Normal> sp;
+  pcl::ShadowPoints<Point,Normal> sp(true);
   //OOOPS = NANS
-  sp.setKeepOrganized(false);
   sp.setThreshold(cfg_.ghost_threshold);
   sp.setNormals(data.normals_);
   sp.setInputCloud(data.input_);
+  sp.setNegative(true);
   sp.filter(*data.input_);
 
   std::cout << "Removed GhostPoints: " <<sp.getRemovedIndices()->size() << std::endl;
@@ -72,7 +73,7 @@ void Denoiser::removeOutliers(PreprocessedData& data)
 {
   Timer::Scoped timer("RemoveOutliers");
 
-  size_t removed_count = 0;
+  auto initial_size = data.input_->size();
 
   if(cfg_.outliers_method == 0)
   {
@@ -83,7 +84,6 @@ void Denoiser::removeOutliers(PreprocessedData& data)
     ror.setMinNeighborsInRadius(cfg_.outliers_min_neighs);
     // apply filter
     ror.filter(*data.input_);
-    removed_count = ror.getRemovedIndices()->size();
   }
   else
   {
@@ -92,21 +92,9 @@ void Denoiser::removeOutliers(PreprocessedData& data)
     sor.setMeanK(cfg_.outliers_mean_k);
     sor.setStddevMulThresh(cfg_.outliers_stddev);
     sor.filter(*data.input_);
-    removed_count = sor.getRemovedIndices()->size();
   }
 
-  std::cout << "Removed Outliers: " << removed_count << std::endl;
-}
-
-void Denoiser::voxelize(PreprocessedData& data)
-{
-  Timer::Scoped timer("Voxelize");
-
-  pcl::VoxelGrid<Point> sor;
-  sor.setInputCloud(data.input_);
-  auto& leaf = cfg_.voxel_leaf_size;
-  sor.setLeafSize(leaf, leaf, leaf);
-  sor.filter(*data.input_);
+  std::cout << "Removed Outliers: " << initial_size - data.input_->size() << std::endl;
 }
 
 void Denoiser::removeEdges(PreprocessedData& data)
@@ -197,9 +185,6 @@ void Denoiser::cleanOnInput(PreprocessedData& data)
 
   if(cfg_.remove_outliers)
     removeOutliers(data);
-
-  if(cfg_.voxelize)
-    voxelize(data);
 }
 
 void Denoiser::cleanWithNormals(PreprocessedData& data)

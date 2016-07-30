@@ -19,7 +19,6 @@ public:
   void removeGhostPoints(PreprocessedData& data);
   void removeNaNs(PreprocessedData& data);
   void removeOutliers(PreprocessedData& data);
-  void voxelize(PreprocessedData& data);
 private:
 };
 

@@ -26,8 +26,8 @@ PreprocessedData Preprocessor::load(std::string file_name)
     computeResolution();
     std::cout << "Cloud resolution " << data_.input_resolution_ << std::endl;
   }
-  preprocess();
   denoiser.cleanOnInput(data_);
+  preprocess();
 
   return data_;
 }
@@ -37,7 +37,8 @@ void Preprocessor::preprocess()
   if(!normals_loaded && Config::shouldRun(Config::Normals))
     describer.computeNormals(data_);
 
-  denoiser.cleanWithNormals(data_);
+  if(!data_.normals_->empty())
+    denoiser.cleanWithNormals(data_);
 
   if(Config::shouldRun(Config::Keypoints))
     downsampler.computeKeypoints(data_);

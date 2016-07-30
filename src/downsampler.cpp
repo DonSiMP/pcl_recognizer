@@ -18,6 +18,9 @@ void Downsampler::computeKeypoints(PreprocessedData& data)
     case Method::Uniform:
       downsampleUniform(data);
       break;
+    case Method::Voxel:
+      downsampleVoxel(data);
+      break;
     case Method::ISS:
       downsampleISS(data);
       break;
@@ -42,6 +45,18 @@ void Downsampler::downsampleUniform(PreprocessedData& data)
   uniform_sampling.setInputCloud (data.input_);
   uniform_sampling.setRadiusSearch (cfg_.uniform_radius);
   uniform_sampling.filter (*data.keypoints_);
+}
+
+
+void Downsampler::downsampleVoxel(PreprocessedData& data)
+{
+  Timer::Scoped timer("Voxelize");
+
+  pcl::VoxelGrid<Point> sor;
+  sor.setInputCloud(data.input_);
+  auto& leaf = cfg_.voxel_leaf_size;
+  sor.setLeafSize(leaf, leaf, leaf);
+  sor.filter(*data.keypoints_);
 }
 
 void Downsampler::downsampleISS(PreprocessedData& data)
