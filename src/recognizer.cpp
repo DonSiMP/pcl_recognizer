@@ -39,6 +39,7 @@ void Recognizer::findCorrespondences()
       ROS_INFO("Infinite descriptor");
       continue;
     }
+    // TODO: change norm to L1
     int found_neighs = match_search.radiusSearch(scene_.descriptors_->at(descr_idx), cfg_.corr_distance, neigh_indices, neigh_sqr_dists, 5);
     // add match only if the squared descriptor distance is
     // less than 0.25 (SHOT descriptor distances are between 0 and 1 by design)

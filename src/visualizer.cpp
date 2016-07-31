@@ -62,7 +62,10 @@ void Visualizer::renderRecognition(Recognizer& rec)
   vis_.removeCorrespondences();
   constexpr auto MAX_CLUSTERS = 10;
   for(int idx = 0; idx < MAX_CLUSTERS; idx++)
-    vis_.removeCorrespondences(std::to_string(idx));
+  {
+    vis_.removeCorrespondences(std::to_string(idx) + "cluster");
+    vis_.removePointCloud(std::to_string(idx) + "instance");
+  }
 
   if((Config::get().stop_at >= Config::StopAt::Grouping))
   {
@@ -73,12 +76,25 @@ void Visualizer::renderRecognition(Recognizer& rec)
       {
         if(idx >= MAX_CLUSTERS)
           break;
-        else
-          vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, corrs, std::to_string(idx++));
+        vis_.addCorrespondences<Point>(off_scene_model_keypoints,
+                                       scene.keypoints_,
+                                       corrs,
+                                       std::to_string(idx++) + "cluster");
       }
     }
     else
       vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, *rec.getCorrs());
+
+    int idx = 0;
+    for(const auto& pose : rec.getPoses())
+    {
+      if(idx >= MAX_CLUSTERS)
+        break;
+      pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
+      pcl::transformPointCloud(*model.input_, *rotated_model, pose);
+      pcl::visualization::PointCloudColorHandlerCustom<Point> rotated_model_color_handler(rotated_model, 255, 0, 0);
+      vis_.addPointCloud(rotated_model, rotated_model_color_handler, std::to_string(idx++) + "instance");
+    }
   }
 }
 

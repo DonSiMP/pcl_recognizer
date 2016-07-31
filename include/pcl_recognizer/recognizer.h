@@ -19,7 +19,7 @@ public:
   PreprocessedData getModel() { return model_; }
   PreprocessedData getScene() { return scene_; }
   pcl::CorrespondencesPtr getCorrs() { return model_scene_corrs; };
-
+  PoseVector& getPoses() { return foundInstances; };
   std::vector<pcl::Correspondences>& getClusters() { return correspondence_clusters_; };
 private:
   bool done = false;
