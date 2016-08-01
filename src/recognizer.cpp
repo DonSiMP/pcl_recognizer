@@ -1,8 +1,13 @@
-#include "pcl_recognizer/recognizer.h"
+#include <pcl_recognizer/recognizer.h>
 
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/recognition/cg/geometric_consistency.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/icp_nl.h>
+
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
+
 #include <pcl_recognizer/config.h>
 #include <pcl_recognizer/utils.h>
 
@@ -15,15 +20,21 @@ int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
     clusterize();
   }
 
+  if(Config::shouldRun(Config::AbsoluteOrientation))
+    refineAbsoluteOrientation();
+
+  if(Config::shouldRun(Config::IterativeClosestPoint))
+    refineICP();
+
   done = true;
-  return foundInstances.size();
+  return static_cast<int>(foundInstances_.size());
 }
 
 void Recognizer::findCorrespondences()
 {
   Timer::Scoped timer("Correspondences");
 
-  model_scene_corrs.reset(new pcl::Correspondences ());
+  model_scene_corrs_.reset(new pcl::Correspondences ());
 
   pcl::KdTreeFLANN<Descriptor> match_search;
   match_search.setInputCloud (model_.descriptors_);
@@ -46,12 +57,12 @@ void Recognizer::findCorrespondences()
     for(int corr_idx = 0; corr_idx < found_neighs; corr_idx++)
     {
       pcl::Correspondence corr (neigh_indices[corr_idx], static_cast<int>(descr_idx), neigh_sqr_dists[corr_idx]);
-      model_scene_corrs->push_back (corr);
+      model_scene_corrs_->push_back (corr);
     }
   }
   ROS_INFO_STREAM(
       "Correspondences found: " <<
-      model_scene_corrs->size () <<
+      model_scene_corrs_->size () <<
       std::endl);
 }
 
@@ -79,9 +90,9 @@ void Recognizer::clusterizeHough()
   clusterer.setInputRf (model_.rf_);
   clusterer.setSceneCloud (scene_.keypoints_);
   clusterer.setSceneRf (scene_.rf_);
-  clusterer.setModelSceneCorrespondences (model_scene_corrs);
+  clusterer.setModelSceneCorrespondences (model_scene_corrs_);
 
-  clusterer.recognize (foundInstances, correspondence_clusters_);
+  clusterer.recognize (foundInstances_, correspondence_clusters_);
 }
 
 void Recognizer::clusterizeGC()
@@ -92,7 +103,55 @@ void Recognizer::clusterizeGC()
 
   gc_clusterer.setInputCloud (model_.keypoints_);
   gc_clusterer.setSceneCloud (scene_.keypoints_);
-  gc_clusterer.setModelSceneCorrespondences (model_scene_corrs);
+  gc_clusterer.setModelSceneCorrespondences (model_scene_corrs_);
 
-  gc_clusterer.recognize (foundInstances, correspondence_clusters_);
+  gc_clusterer.recognize (foundInstances_, correspondence_clusters_);
+}
+
+void Recognizer::refineAbsoluteOrientation()
+{
+  Timer::Scoped timer("AbsoluteOrientation");
+
+  pcl::registration::TransformationEstimationSVD<Point, Point> trans_est;
+  pcl::registration::CorrespondenceRejectorSampleConsensus<Point> rejector;
+  rejector.setInputSource(model_.getKeypointCloud());
+  rejector.setInputTarget(scene_.getKeypointCloud());
+  for(auto idx = 0u; idx < foundInstances_.size(); ++idx)
+  {
+    rejector.getRemainingCorrespondences(correspondence_clusters_.at(idx),correspondence_clusters_.at(idx));
+    trans_est.estimateRigidTransformation(*model_.getKeypointCloud(),
+                                          *scene_.getKeypointCloud(),
+                                          correspondence_clusters_.at(idx),
+                                          foundInstances_.at(idx));
+  }
+}
+
+void Recognizer::refineICP()
+{
+  Timer::Scoped timer("IterativeClosestPoint");
+
+  pcl::IterativeClosestPoint<Point, Point> icp;
+  icp.setInputSource(model_.input_);
+  icp.setInputTarget(scene_.input_);
+// Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
+//  icp.setMaxCorrespondenceDistance (0.05);
+// Set the maximum number of iterations (criterion 1)
+//  icp.setMaximumIterations (50);
+// Set the transformation epsilon (criterion 2)
+//  icp.setTransformationEpsilon (1e-8);
+// Set the euclidean distance difference epsilon (criterion 3)
+//  icp.setEuclideanFitnessEpsilon (1);
+  pcl::PointCloud<Point> model_registered;
+  for(auto idx = 0u; idx < foundInstances_.size(); ++idx)
+  {
+    icp.align(model_registered, foundInstances_.at(idx));
+    std::cout << "has converged:" << icp.hasConverged() << " score: " <<
+              icp.getFitnessScore() << std::endl;
+    std::cout << (foundInstances_.at(idx) = icp.getFinalTransformation()) << std::endl;
+  }
+}
+
+void Recognizer::verifyHypotheses()
+{
+
 }

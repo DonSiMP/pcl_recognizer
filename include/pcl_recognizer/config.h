@@ -15,7 +15,8 @@ public:
     Keypoints,
     Descriptors,
     Grouping,
-    All
+    AbsoluteOrientation,
+    IterativeClosestPoint
   };
 
   static pcl_recognizer::RecognizerConfig& get();
