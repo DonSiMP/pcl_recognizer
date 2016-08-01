@@ -39,5 +39,7 @@ Timer::Scoped::Scoped(std::string name): name_(name)
 
 Timer::Scoped::~Scoped()
 {
-  log_duration(name_, start_, hrc::now());
+  auto time = hrc::now();
+  std::cout << "------------- ";
+  log_duration(name_, start_, time);
 }
