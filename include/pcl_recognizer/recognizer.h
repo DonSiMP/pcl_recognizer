@@ -19,7 +19,7 @@ public:
   PreprocessedData getModel() { return model_; }
   PreprocessedData getScene() { return scene_; }
   pcl::CorrespondencesPtr getCorrs() { return model_scene_corrs_; };
-  PoseVector& getPoses() { return foundInstances_; };
+  PoseVector& getPoses() { return found_poses_; };
   std::vector<pcl::Correspondences>& getClusters() { return correspondence_clusters_; };
 private:
   bool done = false;
@@ -27,7 +27,8 @@ private:
   PreprocessedData model_, scene_;
   std::vector<pcl::Correspondences> correspondence_clusters_;
   pcl::CorrespondencesPtr model_scene_corrs_;
-  PoseVector foundInstances_;
+  PoseVector found_poses_;
+  std::vector<Cloud::ConstPtr> registered_instances_;
 
   void findCorrespondences();
   void clusterize();

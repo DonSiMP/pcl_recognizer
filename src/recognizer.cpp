@@ -7,9 +7,9 @@
 
 #include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/recognition/cg/geometric_consistency.h>
+#include <pcl/recognition/hv/hv_go.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
-
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
 #include <pcl_recognizer/config.h>
@@ -25,14 +25,17 @@ int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
     clusterize();
   }
 
-  if(Config::shouldRun(Config::AbsoluteOrientation))
+  if(Config::shouldRun(Config::AbsoluteOrientation) && cfg_.refine_svd)
     refineAbsoluteOrientation();
 
-  if(Config::shouldRun(Config::IterativeClosestPoint))
+  if(Config::shouldRun(Config::IterativeClosestPoint) && cfg_.refine_icp)
     refineICP();
 
+  if(Config::shouldRun(Config::HypothesisVerification))
+    verifyHypotheses();
+
   done = true;
-  return static_cast<int>(foundInstances_.size());
+  return static_cast<int>(found_poses_.size());
 }
 
 void Recognizer::findCorrespondences()
@@ -97,7 +100,7 @@ void Recognizer::clusterizeHough()
   clusterer.setSceneRf (scene_.rf_);
   clusterer.setModelSceneCorrespondences (model_scene_corrs_);
 
-  clusterer.recognize (foundInstances_, correspondence_clusters_);
+  clusterer.recognize (found_poses_, correspondence_clusters_);
 }
 
 void Recognizer::clusterizeGC()
@@ -110,7 +113,7 @@ void Recognizer::clusterizeGC()
   gc_clusterer.setSceneCloud (scene_.keypoints_);
   gc_clusterer.setModelSceneCorrespondences (model_scene_corrs_);
 
-  gc_clusterer.recognize (foundInstances_, correspondence_clusters_);
+  gc_clusterer.recognize (found_poses_, correspondence_clusters_);
 }
 
 void Recognizer::refineAbsoluteOrientation()
@@ -121,13 +124,13 @@ void Recognizer::refineAbsoluteOrientation()
   pcl::registration::CorrespondenceRejectorSampleConsensus<Point> rejector;
   rejector.setInputSource(model_.getKeypointCloud());
   rejector.setInputTarget(scene_.getKeypointCloud());
-  for(auto idx = 0u; idx < foundInstances_.size(); ++idx)
+  for(auto idx = 0u; idx < found_poses_.size(); ++idx)
   {
     rejector.getRemainingCorrespondences(correspondence_clusters_.at(idx),correspondence_clusters_.at(idx));
     trans_est.estimateRigidTransformation(*model_.getKeypointCloud(),
                                           *scene_.getKeypointCloud(),
                                           correspondence_clusters_.at(idx),
-                                          foundInstances_.at(idx));
+                                          found_poses_.at(idx));
   }
 }
 
@@ -139,24 +142,55 @@ void Recognizer::refineICP()
   icp.setInputSource(model_.input_);
   icp.setInputTarget(scene_.input_);
 // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-//  icp.setMaxCorrespondenceDistance (0.05);
+  icp.setMaxCorrespondenceDistance(cfg_.icp_corr_dist);
 // Set the maximum number of iterations (criterion 1)
-//  icp.setMaximumIterations (50);
+  icp.setMaximumIterations (cfg_.icp_max_iter);
 // Set the transformation epsilon (criterion 2)
 //  icp.setTransformationEpsilon (1e-8);
 // Set the euclidean distance difference epsilon (criterion 3)
 //  icp.setEuclideanFitnessEpsilon (1);
-  pcl::PointCloud<Point> model_registered;
-  for(auto idx = 0u; idx < foundInstances_.size(); ++idx)
+  registered_instances_.clear();
+  for(auto idx = 0u; idx < found_poses_.size(); ++idx)
   {
-    icp.align(model_registered, foundInstances_.at(idx));
-    std::cout << "has converged:" << icp.hasConverged() << " score: " <<
-              icp.getFitnessScore() << std::endl;
-    std::cout << (foundInstances_.at(idx) = icp.getFinalTransformation()) << std::endl;
+    pcl::PointCloud<Point>::Ptr model_registered(new pcl::PointCloud<Point>);
+    icp.align(*model_registered, found_poses_.at(idx));
+    if (icp.hasConverged())
+    {
+      registered_instances_.push_back(model_registered);
+      std::cout << (found_poses_.at(idx) = icp.getFinalTransformation()) << std::endl;
+    }
   }
 }
 
 void Recognizer::verifyHypotheses()
 {
+  std::vector<bool> hypotheses_mask;
 
+  pcl::GlobalHypothesesVerification<Point, Point> hv;
+
+  hv.setSceneCloud(scene_.input_);
+  hv.addModels(registered_instances_, true);
+
+  hv.setInlierThreshold(cfg_.hv_inlier_th);
+  hv.setOcclusionThreshold (cfg_.hv_occlusion_th);
+  hv.setRegularizer(cfg_.hv_regularizer);
+  hv.setRadiusClutter(cfg_.hv_rad_clutter);
+  hv.setClutterRegularizer(cfg_.hv_clutter_reg);
+  hv.setDetectClutter(cfg_.hv_detect_clutter);
+  hv.setRadiusNormals(cfg_.hv_rad_normals);
+
+  hv.verify();
+  hv.getMask(hypotheses_mask);  // i-element TRUE if hvModels[i] verifies hypotheses
+
+  for (int i = 0; i < hypotheses_mask.size (); i++)
+  {
+    if (hypotheses_mask[i])
+    {
+      std::cout << "Instance " << i << " is GOOD! <---" << std::endl;
+    }
+    else
+    {
+      std::cout << "Instance " << i << " is bad!" << std::endl;
+    }
+  }
 }

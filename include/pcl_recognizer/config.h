@@ -16,7 +16,8 @@ public:
     Descriptors,
     Grouping,
     AbsoluteOrientation,
-    IterativeClosestPoint
+    IterativeClosestPoint,
+    HypothesisVerification
   };
 
   static pcl_recognizer::RecognizerConfig& get();
