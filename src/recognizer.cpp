@@ -1,6 +1,10 @@
 #include <pcl_recognizer/recognizer.h>
 
+
+#define PCL_NO_PRECOMPILE
 #include <pcl/kdtree/kdtree_flann.h>
+#undef PCL_NO_PRECOMPILE
+
 #include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/recognition/cg/geometric_consistency.h>
 #include <pcl/registration/icp.h>
@@ -10,6 +14,7 @@
 
 #include <pcl_recognizer/config.h>
 #include <pcl_recognizer/utils.h>
+
 
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
@@ -36,7 +41,7 @@ void Recognizer::findCorrespondences()
 
   model_scene_corrs_.reset(new pcl::Correspondences ());
 
-  pcl::KdTreeFLANN<Descriptor> match_search;
+  pcl::KdTreeFLANN<Descriptor, ::flann::L1<float>> match_search;
   match_search.setInputCloud (model_.descriptors_);
 
   // For each scene keypoint descriptor, find nearest neighbor into the
