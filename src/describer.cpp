@@ -34,7 +34,9 @@ void Describer::computeNormalsINT(PreprocessedData& data)
   pcl::IntegralImageNormalEstimation<Point, Normal> ne;
   ne.setNormalEstimationMethod(static_cast<decltype(ne.COVARIANCE_MATRIX)>(cfg_.int_method));
   ne.setMaxDepthChangeFactor(cfg_.int_normal_maxdepth);
+  ne.setDepthDependentSmoothing(true);
   ne.setNormalSmoothingSize(cfg_.int_normal_smoothing);
+  ne.setBorderPolicy(decltype(ne)::BORDER_POLICY_MIRROR);
   ne.setInputCloud(data.input_);
   ne.compute(*data.normals_);
 }
