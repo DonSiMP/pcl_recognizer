@@ -21,6 +21,7 @@ public:
   pcl::CorrespondencesPtr getCorrs() { return model_scene_corrs_; };
   PoseVector& getPoses() { return found_poses_; };
   std::vector<pcl::Correspondences>& getClusters() { return correspondence_clusters_; };
+  std::vector<bool>& getVerificationResults() { return hypotheses_mask_; };
 private:
   bool done = false;
 
@@ -29,6 +30,7 @@ private:
   pcl::CorrespondencesPtr model_scene_corrs_;
   PoseVector found_poses_;
   std::vector<Cloud::ConstPtr> registered_instances_;
+  std::vector<bool> hypotheses_mask_;
 
   void findCorrespondences();
   void clusterize();

@@ -86,14 +86,20 @@ void Visualizer::renderRecognition(Recognizer& rec)
       vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, *rec.getCorrs());
 
     int idx = 0;
+    const auto& verification = rec.getVerificationResults();
     for(const auto& pose : rec.getPoses())
     {
       if(idx >= MAX_CLUSTERS)
         break;
+      using ColorizeCloud = pcl::visualization::PointCloudColorHandlerCustom<Point>;
       pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
       pcl::transformPointCloud(*model.input_, *rotated_model, pose);
-      pcl::visualization::PointCloudColorHandlerCustom<Point> rotated_model_color_handler(rotated_model, 255, 0, 0);
-      vis_.addPointCloud(rotated_model, rotated_model_color_handler, std::to_string(idx++) + "instance");
+      ColorizeCloud red(rotated_model, 255, 0, 0);
+      ColorizeCloud green(rotated_model, 0, 255, 0);
+      vis_.addPointCloud(rotated_model,
+                         (!verification.empty() && verification.at(idx)) ? green : red,
+                         std::to_string(idx) + "instance");
+      idx++;
     }
   }
 }

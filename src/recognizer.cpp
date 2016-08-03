@@ -1,6 +1,6 @@
 #include <pcl_recognizer/recognizer.h>
 
-
+#include <algorithm>
 #define PCL_NO_PRECOMPILE
 #include <pcl/kdtree/kdtree_flann.h>
 #undef PCL_NO_PRECOMPILE
@@ -18,6 +18,7 @@
 
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
+  hypotheses_mask_.clear();
   scene_ = scene;
   if(Config::shouldRun(Config::Grouping))
   {
@@ -35,7 +36,7 @@ int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
     verifyHypotheses();
 
   done = true;
-  return static_cast<int>(found_poses_.size());
+  return static_cast<int>(std::count(std::begin(hypotheses_mask_), std::end(hypotheses_mask_), true));
 }
 
 void Recognizer::findCorrespondences()
@@ -164,8 +165,6 @@ void Recognizer::refineICP()
 
 void Recognizer::verifyHypotheses()
 {
-  std::vector<bool> hypotheses_mask;
-
   pcl::GlobalHypothesesVerification<Point, Point> hv;
 
   hv.setSceneCloud(scene_.input_);
@@ -180,11 +179,10 @@ void Recognizer::verifyHypotheses()
   hv.setRadiusNormals(cfg_.hv_rad_normals);
 
   hv.verify();
-  hv.getMask(hypotheses_mask);  // i-element TRUE if hvModels[i] verifies hypotheses
-
-  for (int i = 0; i < hypotheses_mask.size (); i++)
+  hv.getMask(hypotheses_mask_);  // i-element TRUE if hvModels[i] verifies hypotheses
+  for (int i = 0; i < hypotheses_mask_.size (); i++)
   {
-    if (hypotheses_mask[i])
+    if (hypotheses_mask_[i])
     {
       std::cout << "Instance " << i << " is GOOD! <---" << std::endl;
     }
