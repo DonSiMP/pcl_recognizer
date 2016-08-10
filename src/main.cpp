@@ -7,7 +7,7 @@
 #include <pcl_recognizer/visualizer.h>
 #include <pcl_recognizer/config.h>
 
-static constexpr auto VIEWS_COUNT = 5;//37;
+static constexpr auto VIEWS_COUNT = 37;
 int main(int argc, char *argv[])
 {
   ros::init(argc, argv, "pcl_recognizer");
