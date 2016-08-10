@@ -34,10 +34,45 @@ void Visualizer::renderRecognition(Recognizer& rec)
   show_recognition = true;
 
   std::cout << "showing recognition " << std::endl;
-  auto model = rec.getModel();
+
+  if(Config::get().use_full_model)
+    renderFullModelRecognition(rec);
+
+  for(; current_registered_instances >= 0; --current_registered_instances)
+    vis_.removePointCloud(std::to_string(current_registered_instances) + "instance");
+
+  if(Config::shouldRun(Config::HypothesisVerification))
+  {
+    const auto& results = rec.getRecognitionResults();
+    for(const auto& result : results)
+      for(const auto& pose : result.poses_)
+      {
+        std::cout << "debug: showing recognition " << current_registered_instances << std::endl;
+        using ColorizeCloud = pcl::visualization::PointCloudColorHandlerCustom<Point>;
+        pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
+        pcl::transformPointCloud(*result.model_.input_, *rotated_model, pose);
+        ColorizeCloud red(rotated_model, 255, 0, 0);
+        ColorizeCloud green(rotated_model, 0, 255, 0);
+        vis_.addPointCloud(rotated_model,
+                           (!result.verification_.empty() && result.verification_.at(current_registered_instances)) ? green : red,
+                           std::to_string(current_registered_instances) + "instance");
+        current_registered_instances++;
+      }
+  }
+}
+
+void Visualizer::renderFullModelRecognition(Recognizer& rec)
+{
+  auto results = rec.getRecognitionResults();
   Cloud::Ptr off_scene_model(new Cloud()), off_scene_model_keypoints(new Cloud());
-  pcl::transformPointCloud (*model.input_, *off_scene_model, Eigen::Vector3f (-.5,0,0), Eigen::Quaternionf (0.5, 0, 0.86603, 0));
-  pcl::transformPointCloud (*model.keypoints_, *off_scene_model_keypoints, Eigen::Vector3f (-.5,0,0), Eigen::Quaternionf (0.5, 0, 0.86603, 0));
+  pcl::transformPointCloud (*results.front().model_.input_,
+                            *off_scene_model,
+                            Eigen::Vector3f(-.5,0,0),
+                            Eigen::Quaternionf(0.5, 0, 0.86603, 0));
+  pcl::transformPointCloud (*results.front().model_.keypoints_,
+                            *off_scene_model_keypoints,
+                            Eigen::Vector3f (-.5,0,0),
+                            Eigen::Quaternionf (0.5, 0, 0.86603, 0));
   {
     vis_.removePointCloud("model_input");
     vis_.removePointCloud("model_keypoints");
@@ -60,47 +95,28 @@ void Visualizer::renderRecognition(Recognizer& rec)
   }
 
   vis_.removeCorrespondences();
-  constexpr auto MAX_CLUSTERS = 10;
-  for(int idx = 0; idx < MAX_CLUSTERS; idx++)
-  {
-    vis_.removeCorrespondences(std::to_string(idx) + "cluster");
-    vis_.removePointCloud(std::to_string(idx) + "instance");
-  }
+  for(; current_corr_clusters > 0; --current_corr_clusters)
+    vis_.removeCorrespondences(std::to_string(current_corr_clusters) + "cluster");
 
   if((Config::get().stop_at >= Config::StopAt::Grouping))
   {
-    if(cfg_.view_clusters)
+    if (cfg_.view_clusters)
     {
-      int idx = 0;
-      for(const auto& corrs : rec.getClusters())
-      {
-        if(idx >= MAX_CLUSTERS)
-          break;
-        vis_.addCorrespondences<Point>(off_scene_model_keypoints,
-                                       scene.keypoints_,
-                                       corrs,
-                                       std::to_string(idx++) + "cluster");
-      }
+      for (const auto& result : rec.getRecognitionResults())
+        for (const auto& corrs : result.clusters_)
+        {
+          vis_.addCorrespondences<Point>(off_scene_model_keypoints,
+                                         scene.keypoints_,
+                                         corrs,
+                                         std::to_string(current_corr_clusters++) + "cluster");
+        }
     }
     else
-      vis_.addCorrespondences<Point>(off_scene_model_keypoints, scene.keypoints_, *rec.getCorrs());
-
-    int idx = 0;
-    const auto& verification = rec.getVerificationResults();
-    for(const auto& pose : rec.getPoses())
-    {
-      if(idx >= MAX_CLUSTERS)
-        break;
-      using ColorizeCloud = pcl::visualization::PointCloudColorHandlerCustom<Point>;
-      pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
-      pcl::transformPointCloud(*model.input_, *rotated_model, pose);
-      ColorizeCloud red(rotated_model, 255, 0, 0);
-      ColorizeCloud green(rotated_model, 0, 255, 0);
-      vis_.addPointCloud(rotated_model,
-                         (!verification.empty() && verification.at(idx)) ? green : red,
-                         std::to_string(idx) + "instance");
-      idx++;
-    }
+      for (const auto& result : rec.getRecognitionResults())
+        vis_.addCorrespondences<Point>(off_scene_model_keypoints,
+                                       scene.keypoints_,
+                                       *result.correspondences_,
+                                       std::to_string(current_corr_clusters++) + "cluster");
   }
 }
 

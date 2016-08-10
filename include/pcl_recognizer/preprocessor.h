@@ -15,7 +15,10 @@ public:
       downsampler(name + "_keypoints"),
       describer(name + "_descriptors") {};
 
-  PreprocessedData load(std::string file_name);
+  PreprocessedData load(const std::string& pcd_path);
+  PreprocessedData load(const std::string& pcd_path,
+                        const std::string& indices_path,
+                        const std::string& pose_path);
 private:
   PreprocessedData data_;
   Denoiser denoiser;
@@ -23,6 +26,9 @@ private:
   Downsampler downsampler;
   bool normals_loaded = false;
 
+  void loadPCD(const std::string& pcd_path);
+  void loadIndices(const std::string& indices_path);
+  void loadPose(const std::string& pose_path);
   void preprocess();
   void computeResolution();
 };

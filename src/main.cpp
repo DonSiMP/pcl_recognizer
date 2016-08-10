@@ -1,13 +1,13 @@
 #include <ros/ros.h>
 
+#include <iomanip>
+
 #include <pcl_recognizer/preprocessor.h>
 #include <pcl_recognizer/recognizer.h>
 #include <pcl_recognizer/visualizer.h>
 #include <pcl_recognizer/config.h>
 
-static constexpr auto MODEL_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/3D_model.pcd";
-static constexpr auto SCENE_PATH = "/home/oles/mgr/datasets/willow/willow_models/object_01/views/cloud_00000004.pcd";
-
+static constexpr auto VIEWS_COUNT = 5;//37;
 int main(int argc, char *argv[])
 {
   ros::init(argc, argv, "pcl_recognizer");
@@ -34,9 +34,22 @@ int main(int argc, char *argv[])
       Config::get().recalculate = false;
       try
       {
-        auto model = model_preprocessor.load(MODEL_PATH);
-        auto scene = scene_preprocessor.load(SCENE_PATH);
-        recognizer.setModel(model);
+        recognizer.reset();
+        for(auto view_id = 0; !Config::get().use_full_model && view_id < VIEWS_COUNT; ++view_id)
+        {
+          std::stringstream ss;
+          ss << std::setfill('0') << std::setw(8) << view_id;
+          const auto view_id_str = ss.str();
+          recognizer.addModel(model_preprocessor.load(
+              Config::get().model_path + "/views/cloud_" + view_id_str + ".pcd",
+              Config::get().model_path + "/views/object_indices_" + view_id_str + ".txt",
+              Config::get().model_path + "/views/pose_" + view_id_str + ".txt")
+          );
+        }
+        auto model = model_preprocessor.load(Config::get().model_path + "3D_model.pcd");
+        auto scene = scene_preprocessor.load(Config::get().scene_path);
+        if(Config::get().use_full_model)
+          recognizer.addModel(model);
 
         Pose pose;
         auto result = recognizer.recognize(scene, pose);
