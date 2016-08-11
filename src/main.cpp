@@ -1,13 +1,15 @@
 #include <ros/ros.h>
 
 #include <iomanip>
+#include <dirent.h>
 
 #include <pcl_recognizer/preprocessor.h>
 #include <pcl_recognizer/recognizer.h>
 #include <pcl_recognizer/visualizer.h>
 #include <pcl_recognizer/config.h>
 
-static constexpr auto VIEWS_COUNT = 6;//37;
+int count_willow_views(const std::string& path);
+
 int main(int argc, char *argv[])
 {
   ros::init(argc, argv, "pcl_recognizer");
@@ -35,7 +37,8 @@ int main(int argc, char *argv[])
       try
       {
         recognizer.reset();
-        for(auto view_id = 0; !Config::get().use_full_model && view_id < VIEWS_COUNT; ++view_id)
+        auto view_count = Config::get().use_full_model ? 0 : count_willow_views(Config::get().model_path + "/views");
+        for (auto view_id = 0; view_id < view_count; ++view_id)
         {
           std::stringstream ss;
           ss << std::setfill('0') << std::setw(8) << view_id;
@@ -46,9 +49,9 @@ int main(int argc, char *argv[])
               Config::get().model_path + "/views/pose_" + view_id_str + ".txt")
           );
         }
-        auto model = model_preprocessor.load(Config::get().model_path + "3D_model.pcd");
+        auto model = model_preprocessor.load(Config::get().model_path + "/3D_model.pcd");
         auto scene = scene_preprocessor.load(Config::get().scene_path);
-        if(Config::get().use_full_model)
+        if (Config::get().use_full_model)
           recognizer.addModel(model);
 
         Pose pose;
@@ -79,3 +82,23 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+int count_willow_views(const std::string& path)
+{
+  int max_idx = -1;
+  auto dir = opendir(path.c_str());
+  if (dir == nullptr)
+    throw std::runtime_error(std::string("Failed to open views dir: ")
+                             + std::strerror(errno));
+
+  // iterate over directory to get max number in file name
+  for (auto ent = readdir(dir); ent; ent = readdir(dir))
+  {
+    int idx = -1;
+    sscanf(ent->d_name, "%*[^_]_%d", &idx);
+    max_idx = idx > max_idx ? idx : max_idx;
+  }
+
+  std::cout << "Views count: " << max_idx << std::endl;
+  closedir (dir);
+  return max_idx + 1;
+}
