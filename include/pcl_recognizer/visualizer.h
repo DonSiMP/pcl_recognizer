@@ -27,8 +27,8 @@ private:
 
   pcl_recognizer::ViewerConfig init_status_;
 
-  size_t current_corr_clusters = 0;
-  size_t current_registered_instances = 0;
+  size_t corr_clusters_count_ = 0;
+  size_t registered_instances_count_ = 0;
 
   using ColorHandler = pcl::visualization::PointCloudColorHandler<Point>;
   void renderRGB(bool cfg, const Cloud::Ptr& data, const ColorHandler& rgb, const std::string& name, bool& status);

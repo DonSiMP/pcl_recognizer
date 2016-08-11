@@ -49,8 +49,8 @@ void Visualizer::renderRecognition(Recognizer& rec)
   if(Config::get().use_full_model)
     renderFullModelRecognition(rec);
 
-  while(current_registered_instances > 0)
-    vis_.removePointCloud(std::to_string(current_registered_instances--) + "instance");
+  while(registered_instances_count_ > 0)
+    vis_.removePointCloud(std::to_string(registered_instances_count_--) + "instance");
 
   if(Config::shouldRun(Config::HypothesisVerification))
   {
@@ -59,17 +59,16 @@ void Visualizer::renderRecognition(Recognizer& rec)
     {
       for (const auto& pose : result.poses_)
       {
-        std::cout << "debug: showing recognition " << current_registered_instances << std::endl;
         using ColorizeCloud = pcl::visualization::PointCloudColorHandlerCustom<Point>;
         pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
         pcl::transformPointCloud(*result.model_.input_, *rotated_model, pose);
         ColorizeCloud red(rotated_model, 255, 0, 0);
         ColorizeCloud green(rotated_model, 0, 255, 0);
-        current_registered_instances++;
+        registered_instances_count_++;
         vis_.addPointCloud(rotated_model,
-                           (!result.verification_.empty() && result.verification_.at(current_registered_instances))
+                           (!result.verification_.empty() && result.verification_.at(registered_instances_count_-1))
                            ? green : red,
-                           std::to_string(current_registered_instances) + "instance");
+                           std::to_string(registered_instances_count_) + "instance");
       }
     }
   }
@@ -100,8 +99,8 @@ void Visualizer::renderFullModelRecognition(Recognizer& rec)
 
 
   vis_.removeCorrespondences();
-  while(current_corr_clusters > 0)
-    vis_.removeCorrespondences(std::to_string(current_corr_clusters--) + "cluster");
+  while(corr_clusters_count_ > 0)
+    vis_.removeCorrespondences(std::to_string(corr_clusters_count_--) + "cluster");
 
   if((Config::get().stop_at >= Config::StopAt::Grouping))
   {
@@ -113,7 +112,7 @@ void Visualizer::renderFullModelRecognition(Recognizer& rec)
           vis_.addCorrespondences<Point>(off_scene_model_keypoints,
                                          scene.keypoints_,
                                          corrs,
-                                         std::to_string(++current_corr_clusters) + "cluster");
+                                         std::to_string(++corr_clusters_count_) + "cluster");
         }
     }
     else
@@ -121,7 +120,7 @@ void Visualizer::renderFullModelRecognition(Recognizer& rec)
         vis_.addCorrespondences<Point>(off_scene_model_keypoints,
                                        scene.keypoints_,
                                        *result.correspondences_,
-                                       std::to_string(++current_corr_clusters) + "cluster");
+                                       std::to_string(++corr_clusters_count_) + "cluster");
   }
 }
 

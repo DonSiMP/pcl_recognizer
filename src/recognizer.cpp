@@ -19,20 +19,17 @@
 void Recognizer::addModel(const PreprocessedData& model)
 {
   data_.push_back({model});
-  std::cout << "<<<<<<<<< input: " << data_.back().model_.input_->size() << std::endl;
-  std::cout << "<<<<<<<<< descrs: " << data_.back().model_.descriptors_->size() << std::endl;
 }
 
 int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
 {
   global_hypotheses_mask_.clear();
+  // TODO: shouldn't be cleaned when only_last is set
   registered_instances_.clear();
   scene_ = scene;
 
   for(auto& model_data : data_)
   {
-    std::cout << "<<<<<<<<< input: " << model_data.model_.input_->size() << std::endl;
-    std::cout << "<<<<<<<<< descrs: " << model_data.model_.descriptors_->size() << std::endl;
     if (Config::shouldRun(Config::Grouping))
     {
       findCorrespondences(model_data);
@@ -204,7 +201,7 @@ void Recognizer::verifyHypotheses()
   hv.setRadiusNormals(cfg_.hv_rad_normals);
 
   hv.verify();
-  hv.getMask(global_hypotheses_mask_);  // i-element TRUE if hvModels[i] verifies hypotheses
+  hv.getMask(global_hypotheses_mask_);
   for (int i = 0; i < global_hypotheses_mask_.size(); i++)
   {
     if (global_hypotheses_mask_[i])
@@ -213,7 +210,14 @@ void Recognizer::verifyHypotheses()
       std::cout << "Instance " << i << " is bad!" << std::endl;
   }
 
-  //TODO: fill verification for each result
+  auto ghv_iter = std::begin(global_hypotheses_mask_);
+  for(auto& result : data_)
+  {
+    auto offset = result.clusters_.size();
+    result.verification_.clear();
+    result.verification_.insert(std::begin(result.verification_), ghv_iter, ghv_iter + offset);
+    ghv_iter += offset;
+  }
 }
 
 void Recognizer::reset()
