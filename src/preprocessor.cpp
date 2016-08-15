@@ -17,7 +17,6 @@ Preprocessor::load(const std::string& pcd_path)
   }
   preprocess();
 
-  std::cout << "Descr " << data_.descriptors_->size() << std::endl;
   return data_;
 }
 
@@ -58,7 +57,7 @@ void Preprocessor::loadIndices(const std::string& indices_path)
 {
   std::ifstream file(indices_path);
   pcl::PointIndicesPtr pointIndices(new pcl::PointIndices);
-  int index;
+  int index = -1;
   while (file >> index)
     pointIndices->indices.push_back(index);
   pcl::ExtractIndices<Point> extractIndices;
@@ -69,6 +68,26 @@ void Preprocessor::loadIndices(const std::string& indices_path)
 
 void Preprocessor::loadPose(const std::string& pose_path)
 {
+  std::ifstream file(pose_path);
+  float pose_elem;
+  Eigen::Matrix3f rotation;
+  Eigen::Vector3f translation;
+  for (int idx = 0; file >> pose_elem; idx++)
+  {
+    auto row = idx / 4;
+    auto col = idx % 4;
+
+    if (row == 3)
+      break;
+
+    if (col == 3)
+      translation[row] = pose_elem;
+    else
+      rotation(row, col) = pose_elem;
+  }
+  //Affine inverse
+  data_.pose_->block(0,0,3,3) << rotation.transpose();
+  data_.pose_->block(0,3,3,1) << -rotation.transpose()*translation;
 }
 
 void Preprocessor::preprocess()

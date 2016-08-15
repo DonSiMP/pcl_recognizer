@@ -22,15 +22,19 @@ public:
   Recognizer() : Reconfigurable("recognizer_grouping") {};
 
   void addModel(const PreprocessedData& model);
-  int recognize(const PreprocessedData& scene, Pose& pose);
+  int recognize(const PreprocessedData& full_model,
+                const PreprocessedData& scene,
+                Pose& pose);
   bool finished() const { return done; };
   void reset();
 
   std::vector<RecognizedData> getRecognitionResults() { return data_; }
   PreprocessedData getScene() { return scene_; }
+  PreprocessedData getFullModel() { return full_model_; }
 private:
   bool done = false;
 
+  PreprocessedData full_model_;
   PreprocessedData scene_;
   std::vector<RecognizedData> data_;
   std::vector<Cloud::ConstPtr> registered_instances_;

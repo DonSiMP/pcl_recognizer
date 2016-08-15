@@ -57,19 +57,23 @@ void Visualizer::renderRecognition(Recognizer& rec)
     const auto& results = rec.getRecognitionResults();
     for(const auto& result : results)
     {
+      std::cout << "Poses: " << result.poses_.size() << std::endl;
+      std::cout << "Verifications: " << result.verification_.size() << std::endl;
+      auto hypothesis_idx = 0;
       for (const auto& pose : result.poses_)
       {
         using ColorizeCloud = pcl::visualization::PointCloudColorHandlerCustom<Point>;
         pcl::PointCloud<Point>::Ptr rotated_model(new Cloud());
-        pcl::transformPointCloud(*result.model_.input_, *rotated_model, pose);
+        pcl::transformPointCloud(*rec.getFullModel().input_, *rotated_model, pose);
         ColorizeCloud red(rotated_model, 255, 0, 0);
         ColorizeCloud green(rotated_model, 0, 255, 0);
-        registered_instances_count_++;
         vis_.addPointCloud(rotated_model,
-                           (!result.verification_.empty() && result.verification_.at(registered_instances_count_-1))
+                           (!result.verification_.empty() && result.verification_.at(hypothesis_idx))
                            ? green : red,
-                           std::to_string(registered_instances_count_) + "instance");
+                           std::to_string(registered_instances_count_ + hypothesis_idx + 1) + "instance");
+        hypothesis_idx++;
       }
+      registered_instances_count_ += hypothesis_idx;
     }
   }
 }
@@ -87,16 +91,14 @@ void Visualizer::renderFullModelRecognition(Recognizer& rec)
                             *off_scene_model_keypoints,
                             Eigen::Vector3f (-.5,0,0),
                             Eigen::Quaternionf (0.5, 0, 0.86603, 0));
-  {
-    vis_.removePointCloud("model_input");
-    vis_.removePointCloud("model_keypoints");
-    pcl::visualization::PointCloudColorHandlerRGBField<Point> colorInput(off_scene_model);
-    vis_.addPointCloud(off_scene_model, colorInput, "model_input");
-    pcl::visualization::PointCloudColorHandlerCustom<Point> colorKeypoints(off_scene_model_keypoints, 0, 255, 0);
-    vis_.addPointCloud(off_scene_model_keypoints, colorKeypoints, "model_keypoints");
-    vis_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "model_keypoints");
-  }
 
+  vis_.removePointCloud("model_input");
+  vis_.removePointCloud("model_keypoints");
+  pcl::visualization::PointCloudColorHandlerRGBField<Point> colorInput(off_scene_model);
+  vis_.addPointCloud(off_scene_model, colorInput, "model_input");
+  pcl::visualization::PointCloudColorHandlerCustom<Point> colorKeypoints(off_scene_model_keypoints, 0, 255, 0);
+  vis_.addPointCloud(off_scene_model_keypoints, colorKeypoints, "model_keypoints");
+  vis_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "model_keypoints");
 
   vis_.removeCorrespondences();
   while(corr_clusters_count_ > 0)

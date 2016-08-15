@@ -36,7 +36,8 @@ int main(int argc, char *argv[])
       Config::get().recalculate = false;
       try
       {
-        recognizer.reset();
+        if(Config::shouldRun(Config::Descriptors))
+          recognizer.reset();
         auto view_count = Config::get().use_full_model ? 0 : count_willow_views(Config::get().model_path + "/views");
         for (auto view_id = 0; view_id < view_count; ++view_id)
         {
@@ -55,7 +56,7 @@ int main(int argc, char *argv[])
           recognizer.addModel(model);
 
         Pose pose;
-        auto result = recognizer.recognize(scene, pose);
+        auto result = recognizer.recognize(model, scene, pose);
         std::cout << "Found " << result << " object instances" << std::endl;
 
         model_vis.update(model);

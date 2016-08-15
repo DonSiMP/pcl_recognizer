@@ -21,12 +21,16 @@ void Recognizer::addModel(const PreprocessedData& model)
   data_.push_back({model});
 }
 
-int Recognizer::recognize(const PreprocessedData& scene, Pose& pose)
+int Recognizer::recognize(const PreprocessedData& full_model,
+                          const PreprocessedData& scene,
+                          Pose& pose)
 {
   global_hypotheses_mask_.clear();
   // TODO: shouldn't be cleaned when only_last is set
-  registered_instances_.clear();
+  if (Config::shouldRun(Config::IterativeClosestPoint))
+    registered_instances_.clear();
   scene_ = scene;
+  full_model_ = full_model;
 
   for(auto& model_data : data_)
   {
@@ -173,20 +177,28 @@ void Recognizer::refineICP(RecognizedData& model_data)
 //  icp.setTransformationEpsilon (1e-8);
 // Set the euclidean distance difference epsilon (criterion 3)
 //  icp.setEuclideanFitnessEpsilon (1);
-  for(auto idx = 0u; idx < model_data.poses_.size(); ++idx)
+  for(Pose& view_pose : model_data.poses_)
   {
     pcl::PointCloud<Point>::Ptr model_registered(new pcl::PointCloud<Point>);
-    icp.align(*model_registered, model_data.poses_.at(idx));
+    icp.align(*model_registered, view_pose);
     if (icp.hasConverged())
     {
+      view_pose = icp.getFinalTransformation() * *model_data.model_.pose_;
+      pcl::transformPointCloud(*full_model_.input_,
+                               *model_registered,
+                               view_pose);
       registered_instances_.push_back(model_registered);
-      std::cout << (model_data.poses_.at(idx) = icp.getFinalTransformation()) << std::endl;
+      std::cout << view_pose << std::endl;
+      std::cout << "Registered size: " << registered_instances_.size() << std::endl;
     }
   }
 }
 
 void Recognizer::verifyHypotheses()
 {
+  if(registered_instances_.empty())
+    return;
+
   pcl::GlobalHypothesesVerification<Point, Point> hv;
 
   hv.setSceneCloud(scene_.input_);
@@ -223,6 +235,4 @@ void Recognizer::verifyHypotheses()
 void Recognizer::reset()
 {
   data_.clear();
-  global_hypotheses_mask_.clear();
-  registered_instances_.clear();
 }

@@ -11,6 +11,7 @@ using Point = pcl::PointXYZRGBA;
 using Cloud = pcl::PointCloud<Point>;
 using NormalCloud = pcl::PointCloud<Normal>;
 using Pose = Eigen::Matrix4f;
+using PosePtr = boost::shared_ptr<Pose>;
 using PoseVector = std::vector<Pose, Eigen::aligned_allocator<Pose>>;
 using Descriptor = pcl::SHOT1344;
 using DescriptorCloud = pcl::PointCloud<Descriptor>;
@@ -26,7 +27,7 @@ struct PreprocessedData {
   NormalCloud::Ptr normals_;
   DescriptorCloud::Ptr descriptors_;
   RFCloud::Ptr rf_;
-
+  PosePtr pose_;
   double input_resolution_ = .0;
 
   void reset() {
@@ -36,6 +37,7 @@ struct PreprocessedData {
     normals_.reset(new NormalCloud());
     descriptors_.reset(new DescriptorCloud());
     rf_.reset(new RFCloud());
+    pose_.reset(new Pose(Pose::Identity()));
   }
 
   Cloud::Ptr getKeypointCloud()
